@@ -27,3 +27,5 @@ plt.plot(time[:1000], data[33,:1000])
 plt.show()
 # Print some information about the events
 print(events[0][:10])
+
+
