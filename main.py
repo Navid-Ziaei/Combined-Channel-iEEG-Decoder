@@ -1,8 +1,10 @@
 import mne_bids
 import os
+import pickle
 import numpy as np
-from import_data import SubjectDataset
-
+import matplotlib.pyplot as plt
+from collections import Counter
+from dataset import SubjectDataset
 
 # set device
 device = 'Navid'
@@ -33,12 +35,22 @@ for subject in subject_list:
         i = i + 1
         s = SubjectDataset(data_path, subject, acquisition=acq)
         raw_car = s.preprocess()
-        events, events_id = s.extract_events()
+        events, events_id = s.extract_events(plot=False)
         bands2, bands3, bands4, band5 = s.extract_bands()
         band_all_patient.append(band5['gamma'])
         raw_car_all.append(raw_car)
 
+# Save results
+with open('rr.txt', 'wb') as f:
+    pickle.dump(band_all_patient, f)
 
+# Find common electrodes
+d = []
+for i in range(len(raw_car_all)):
+    elec_list = raw_car_all[i].ch_names
+    d = [*d, *elec_list]
+
+h = Counter(d)
 # find common electrodes
 elec_more_one = []
 elec_more_ten = []
@@ -47,28 +59,29 @@ elec_more_tweny = []
 elec_more_thirty = []
 
 for key in h.keys():
-    if (h[key] > 1):
+    if h[key] > 1:
         elec_more_one.append(key)
-    if (h[key] > 10):
+    if h[key] > 10:
         elec_more_ten.append(key)
-    if (h[key] > 15):
+    if h[key] > 15:
         elec_more_fifteen.append(key)
-    if (h[key] > 20):
+    if h[key] > 20:
         elec_more_tweny.append(key)
 
 print('number of total electrode is =', len(h), '\nmax number of electrod is same=', 23)
 
-print('number of electrod that are same in more than one patient = ', len(elec_more_one))
-print('number of electrod that are same in more than ten patient = ', len(elec_more_ten))
-print('number of electrod that are same in more than fifteen patient = ', len(elec_more_fifteen))
-print('number of electrod that are same in more than tweny patient = ', len(elec_more_tweny))
+print('number of electrode that are same in more than one patient = ', len(elec_more_one))
+print('number of electrode that are same in more than ten patient = ', len(elec_more_ten))
+print('number of electrode that are same in more than fifteen patient = ', len(elec_more_fifteen))
+print('number of electrode that are same in more than tweny patient = ', len(elec_more_tweny))
 
 print('\n\n', elec_more_fifteen, 'elec_more_fifteen\n\n')
 
 print(elec_more_tweny, 'elec_more_tweny')
 
-
-elec= {'F01':[] , 'F03':[] , 'F05': [] , 'F06':[] , 'F07':[] , 'F08':[] , 'T01':[] , 'T02':[] , 'T03':[] , 'T04':[] , 'T05':[] , 'T06':[], 'T07':[], 'T09':[], 'T10':[], 'T11':[], 'T12':[], 'T13':[], 'T14':[], 'T08':[], 'T15':[]}
+elec = {'F01': [], 'F03': [], 'F05': [], 'F06': [], 'F07': [], 'F08': [], 'T01': [], 'T02': [], 'T03': [], 'T04': [],
+        'T05': [], 'T06': [], 'T07': [], 'T09': [], 'T10': [], 'T11': [], 'T12': [], 'T13': [], 'T14': [], 'T08': [],
+        'T15': []}
 
 for i in range(len(raw_car_all)):
     for key in elec.keys():
@@ -76,19 +89,19 @@ for i in range(len(raw_car_all)):
             elec[key].append(i)
 
 for key in elec.keys():
-    print('\n  ' ,key, '=', elec[key])
+    print('\n  ', key, '=', elec[key])
 
-
-plot_elec_avg= {'F01':0 , 'F03':0 , 'F05': 0 , 'F06':0 , 'F07':0 , 'F08':0 , 'T01':0 , 'T02':0 , 'T03':0 , 'T04':0 , 'T05':0 , 'T06':0, 'T07':0, 'T09':0, 'T10':0, 'T11':0, 'T12':0 , 'T13':0 , 'T14':0, 'T08':0, 'T15':0}
-time=np.arange(0, band_all_patient[0].shape[0])/(25)
-
+plot_elec_avg = {'F01': 0, 'F03': 0, 'F05': 0, 'F06': 0, 'F07': 0, 'F08': 0, 'T01': 0, 'T02': 0, 'T03': 0, 'T04': 0,
+                 'T05': 0, 'T06': 0, 'T07': 0, 'T09': 0, 'T10': 0, 'T11': 0, 'T12': 0, 'T13': 0, 'T14': 0, 'T08': 0,
+                 'T15': 0}
+time = np.arange(0, band_all_patient[0].shape[0]) / (25)
 
 for key in plot_elec_avg.keys():
     for i in elec[key]:
-        num_electrode=raw_car_all[i].ch_names.index(key)
-        plot_elec_avg[key]=plot_elec_avg[key]+band_all_patient[i][:,num_electrode]
-    plot_elec_avg[key]=plot_elec_avg[key]/len(elec[key])
-    plt.figure(figsize=(30,10))
-    plt.plot(time[:120*25],plot_elec_avg[key][:120*25])
-    plt.title(str(key),fontsize=25)
+        num_electrode = raw_car_all[i].ch_names.index(key)
+        plot_elec_avg[key] = plot_elec_avg[key] + band_all_patient[i][:, num_electrode]
+    plot_elec_avg[key] = plot_elec_avg[key] / len(elec[key])
+    plt.figure(figsize=(30, 10))
+    plt.plot(time[:120 * 25], plot_elec_avg[key][:120 * 25])
+    plt.title(str(key), fontsize=25)
     plt.show()
