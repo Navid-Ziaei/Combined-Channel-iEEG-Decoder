@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from collections import Counter
 from dataset import SubjectDataset
+from utils import *
 
 # set device
 device = 'Navid'
@@ -18,7 +19,17 @@ else:
 # settings
 settings = {
     'number_of_patients': 3,
+    'features': ['hilbert', 'hgp']
 }
+
+paths = Paths(settings)
+paths.create_path()
+
+fig = plt.figure()
+plt.plot([1,2,3],[1,2,3])
+fig.savefig(paths.path_results + 'test.png')
+
+
 
 subjects = mne_bids.get_entity_vals(data_path, 'subject')
 subject = subjects[0]
