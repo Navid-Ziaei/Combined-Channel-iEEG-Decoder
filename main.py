@@ -1,118 +1,86 @@
-import mne_bids
-import os
+from ieeg_func.utils import *
+from ieeg_func.get_data import gdata
+from ieeg_func.histogram_elec import hist_elec
+from ieeg_func.patient_comelec import com_elec
+from ieeg_func.plot_avg_patient_comelec import plot_comm_elec
+
 import pickle
-import numpy as np
-import matplotlib.pyplot as plt
-from collections import Counter
-from dataset import SubjectDataset
-from utils import *
+
 
 # set device
-device = 'Navid'
+device = 'maryam_laptop'
 if device.lower() == 'navid':
     data_path = 'F:/Datasets/ieeg_visual/ds003688-download/'
-elif device.lower() == 'maryam':
-    data_path = 'E:/maryam.sh'
+elif device.lower() == 'maryam_laptop':
+    data_path = 'E:\Thesis\dataset\dataset'
+elif device.lower() == 'system_lab':
+    data_path = 'F:/maryam_sh/dataset'
 else:
     data_path = ''
 
+
 # settings
+# first determine which task you want
 settings = {
-    'number_of_patients': 3,
-    'features': ['hilbert', 'hgp']
+    # get raw_data and data of bands
+    'get_data':False,
+    # save data "raw_data and data of bands"
+    'save_data':False,
+    # load data "raw_data and data of bands"
+    'load_data':True,
+    #calculate histogram of electrodes of patients
+    'histogram_elec':True,
+    # print number of patient have common electrode
+    'patient_com_elec':True,
+    # plot mean patient of output of common electrode
+    'plot_commelec':True
 }
 
 paths = Paths(settings)
 paths.create_path()
 
-fig = plt.figure()
-plt.plot([1,2,3],[1,2,3])
-fig.savefig(paths.path_results + 'test.png')
+setting_parameter={}
+
+if settings['get_data']:
+    setting_parameter.update({
+        'number_of_patients': 1,
+        'just_gamma': True,
+        'hilbert': True,
+        # if 'subject_list':True, function just calculate subject_list without calculate raw_data and band_all
+        #note that we want subject_list because index of patient in common electrode list doesn't define number of each patient but is index of subject_list
+        'subject_list':True
+    })
+    band_all_patient, raw_car_all,subject_list = gdata(data_path,setting_parameter['subject_list'], setting_parameter['number_of_patients'],setting_parameter['just_gamma'], setting_parameter['hilbert'])
 
 
 
-subjects = mne_bids.get_entity_vals(data_path, 'subject')
-subject = subjects[0]
-acqs = mne_bids.get_entity_vals(os.path.join(data_path, 'sub-' + subject, 'ses-iemu', 'ieeg'), 'acquisition')
-acq = acqs[0]
+if settings['save_data']:
+    with open(paths.path_results + 'raw_car_all.txt', 'wb') as f:
+        pickle.dump(raw_car_all, f)
+    with open(paths.path_results + 'band_all_patient.txt', 'wb') as f:
+        pickle.dump(band_all_patient, f)
 
-# Load all data
-band_all_patient = []
-raw_car_all = []
-subject_list = subjects[:settings['number_of_patients']]
-i = 0
-for subject in subject_list:
-    if 'iemu' in mne_bids.get_entity_vals(os.path.join(data_path, 'sub-' + subject), 'session'):
-        i = i + 1
-        s = SubjectDataset(data_path, subject, acquisition=acq)
-        raw_car = s.preprocess()
-        events, events_id = s.extract_events(plot=False)
-        bands2, bands3, bands4, band5 = s.extract_bands()
-        band_all_patient.append(band5['gamma'])
-        raw_car_all.append(raw_car)
 
-# Save results
-with open('rr.txt', 'wb') as f:
-    pickle.dump(band_all_patient, f)
+if settings['load_data']:
+    path_load_data='E:\\Thesis\\notebook\\data_load\\'
+    with open(path_load_data + 'raw_car_home.txt', 'rb') as f:
+        raw_car_all=pickle.load(f)
+    with open(path_load_data + 'band_all_home.txt', 'rb') as f:
+        band_all_patient=pickle.load(f)
 
-# Find common electrodes
-d = []
-for i in range(len(raw_car_all)):
-    elec_list = raw_car_all[i].ch_names
-    d = [*d, *elec_list]
+if settings['histogram_elec']:
+    hist,elec_morecommon_fifteen=hist_elec(raw_car_all,print_analyze=True)
 
-h = Counter(d)
-# find common electrodes
-elec_more_one = []
-elec_more_ten = []
-elec_more_fifteen = []
-elec_more_tweny = []
-elec_more_thirty = []
+if settings['patient_com_elec']:
+    patient_common_elec=com_elec(raw_car_all,elec_morecommon_fifteen,print_patient= True)
 
-for key in h.keys():
-    if h[key] > 1:
-        elec_more_one.append(key)
-    if h[key] > 10:
-        elec_more_ten.append(key)
-    if h[key] > 15:
-        elec_more_fifteen.append(key)
-    if h[key] > 20:
-        elec_more_tweny.append(key)
 
-print('number of total electrode is =', len(h), '\nmax number of electrod is same=', 23)
+if settings['plot_commelec']:
+    plot_comm_elec(elec_morecommon_fifteen,band_all_patient,raw_car_all,patient_common_elec,final_time=120,fs=25)
 
-print('number of electrode that are same in more than one patient = ', len(elec_more_one))
-print('number of electrode that are same in more than ten patient = ', len(elec_more_ten))
-print('number of electrode that are same in more than fifteen patient = ', len(elec_more_fifteen))
-print('number of electrode that are same in more than tweny patient = ', len(elec_more_tweny))
 
-print('\n\n', elec_more_fifteen, 'elec_more_fifteen\n\n')
-
-print(elec_more_tweny, 'elec_more_tweny')
-
-elec = {'F01': [], 'F03': [], 'F05': [], 'F06': [], 'F07': [], 'F08': [], 'T01': [], 'T02': [], 'T03': [], 'T04': [],
-        'T05': [], 'T06': [], 'T07': [], 'T09': [], 'T10': [], 'T11': [], 'T12': [], 'T13': [], 'T14': [], 'T08': [],
-        'T15': []}
-
-for i in range(len(raw_car_all)):
-    for key in elec.keys():
-        if key in raw_car_all[i].ch_names:
-            elec[key].append(i)
-
-for key in elec.keys():
-    print('\n  ', key, '=', elec[key])
-
-plot_elec_avg = {'F01': 0, 'F03': 0, 'F05': 0, 'F06': 0, 'F07': 0, 'F08': 0, 'T01': 0, 'T02': 0, 'T03': 0, 'T04': 0,
-                 'T05': 0, 'T06': 0, 'T07': 0, 'T09': 0, 'T10': 0, 'T11': 0, 'T12': 0, 'T13': 0, 'T14': 0, 'T08': 0,
-                 'T15': 0}
-time = np.arange(0, band_all_patient[0].shape[0]) / (25)
-
-for key in plot_elec_avg.keys():
-    for i in elec[key]:
-        num_electrode = raw_car_all[i].ch_names.index(key)
-        plot_elec_avg[key] = plot_elec_avg[key] + band_all_patient[i][:, num_electrode]
-    plot_elec_avg[key] = plot_elec_avg[key] / len(elec[key])
-    plt.figure(figsize=(30, 10))
-    plt.plot(time[:120 * 25], plot_elec_avg[key][:120 * 25])
-    plt.title(str(key), fontsize=25)
-    plt.show()
+# fig = plt.figure()
+#plt.plot([1,2,3],[1,2,3])
+#fig.savefig(paths.path_results + 'test.png')
+#plt.show()
+#print(settings['number_of_patients'])
