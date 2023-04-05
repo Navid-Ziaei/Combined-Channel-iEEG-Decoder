@@ -12,8 +12,10 @@ def output_classification(signal,ax,step,ax_x,AVG,RMS):
             s.append(np.mean(signal[i:i + step]))
             i = i + step
 
+
     if RMS:
         s=signal
+
 
     # music=0 &&  speech=1
     label = ['0', '1'] * 6

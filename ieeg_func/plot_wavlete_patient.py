@@ -10,7 +10,7 @@ def plot_wavelet(raw_car_all,patient,electrode):
     data2 = data.reshape((1, 1, data.shape[0]))
     n_cycles = 7.0
     freqs = np.arange(1, 120, 1)
-    out = mne.time_frequency.tfr._compute_tfr(data2, freqs, sfreq, method='morlet',n_cycles=7.0)
+    out = mne.time_frequency.tfr._compute_tfr(data2, freqs, sfreq, method='morlet', n_cycles=7.0)
 
     single_patient_output = np.abs(out[0, 0, :, :])
     single_patient_output_normalized = single_patient_output / np.max(single_patient_output, axis=-1, keepdims=True)
