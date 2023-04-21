@@ -1,7 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
-def plot_temporal_signal(raw_car_all,band_all_patient,onset_question,offset_question,fs,electrode,patient,final_time):
+def plot_temporal_signal(raw_car_all,band_all_patient,onset_question,offset_question,fs,path,electrode,patient,final_time):
+    os.makedirs(path + 'plot_temporal_signal')
+    p2 = os.path.join(path, 'plot_temporal_signal' + '/')
     num_electrode = raw_car_all[patient].ch_names.index(electrode)
     signal = band_all_patient[patient][:, num_electrode]
     time = np.arange(0, signal.shape[0]) / fs
@@ -21,5 +24,8 @@ def plot_temporal_signal(raw_car_all,band_all_patient,onset_question,offset_ques
     plt.vlines(time_dash_music, ymin=-4 * np.ones(len(time_dash_music)), ymax=8 * np.ones(len(time_dash_music)),
                colors='black', ls='--', lw=2, label='vline_multiple - partial height')
 
-    plt.show()
-    plt.savefig("temporal_signal")
+    #plt.show()
+    plt.xlabel('time', fontsize=15)
+    plt.ylabel('temporal_signal', fontsize=15)
+    plt.title('temporal signal of patient=',str(patient),'_electrode =',electrode, fontsize=15)
+    plt.savefig(p2+"temporal_signal")
