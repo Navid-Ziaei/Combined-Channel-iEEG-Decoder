@@ -7,7 +7,7 @@ import os
 
 
 class classification():
-    def __init__(self,raw_car_all,band_all_patient,band_all_patient_nohil,onset_q,onset_a,fs,path,num_patient):
+    def __init__(self,raw_car_all,band_all_patient,band_all_patient_nohil,onset_q,onset_a,fs,path,t_min,step,num_patient):
         self.raw_car_all=raw_car_all
         self.band_all_patient=band_all_patient
         self.band_all_patient_nohil=band_all_patient_nohil
@@ -18,12 +18,15 @@ class classification():
         p2 = os.path.join(path, 'classification' + '/')
         self.path=p2
         self.num_patient=num_patient
+        self.t_min=t_min
+        self.step = step
+
 
     def power_2(self,my_list, p):
         return [x ** p for x in my_list]
 
     def plot_class(self,s, ax,num_electrode):
-        # question (red)/answer(green)
+        # self.label[0] (red)/ self.label[1](green)
         label = ['0'] * len(self.onset_q) + ['1'] * len(self.onset_a)
         y = [num_electrode] * len(label)
 
@@ -44,18 +47,18 @@ class classification():
                 signal = moving_avg(signal, window_size)
                 s = []
                 for i in range(len(self.onset_q)):
-                    start_sample = int(self.onset_q[i] - 0.5) * self.fs
-                    end_sample = int(self.onset_q[i] + 2.5) * self.fs
+                    start_sample = int(self.onset_q[i] - self.t_min) * self.fs
+                    end_sample = int(self.onset_q[i] + self.step) * self.fs
                     s.append(np.mean(signal[start_sample:end_sample]))
                 for i in range(len(self.onset_a)):
-                    start_sample = int(self.onset_a[i] - 0.5) * self.fs
-                    end_sample = int(self.onset_a[i] + 2.5) * self.fs
+                    start_sample = int(self.onset_a[i] - self.t_min) * self.fs
+                    end_sample = int(self.onset_a[i] +self.step) * self.fs
                     s.append(np.mean(signal[start_sample:end_sample]))
                 ax=self.plot_class(s,ax,num_electrode)
             ax.set_xlabel('num_electrode', fontsize=40)
             ax.set_ylabel('average', fontsize=40)
-            ax.set_title('patinet='+str(patient), fontsize=40)
-            fig.savefig(p_avg+'patinet_'+str(patient))
+            ax.set_title('patient='+str(patient), fontsize=40)
+            fig.savefig(p_avg+'patient_'+str(patient))
 
     def class_rms(self):
         os.makedirs(self.path + 'RMS')
@@ -68,14 +71,14 @@ class classification():
                 signal = self.band_all_patient_nohil[patient][:, num_electrode]
                 s = []
                 for i in range(len(self.onset_q)):
-                    start_sample = int(self.onset_q[i] - 0.5) * self.fs
-                    end_sample = int(self.onset_q[i] + 2.5) * self.fs
+                    start_sample = int(self.onset_q[i] - self.t_min) * self.fs
+                    end_sample = int(self.onset_q[i] + self.step) * self.fs
                     e = sum(self.power_2(signal[start_sample:end_sample], 2))
                     e2 = (1 / len(signal[start_sample:end_sample])) * math.sqrt(e)
                     s.append(e2)
                 for i in range(len(self.onset_a)):
-                    start_sample = int(self.onset_a[i] - 0.5) * self.fs
-                    end_sample = int(self.onset_a[i] + 2.5) * self.fs
+                    start_sample = int(self.onset_a[i] -self.t_min) * self.fs
+                    end_sample = int(self.onset_a[i] + self.step) * self.fs
                     e = sum(self.power_2(signal[start_sample:end_sample], 2))
                     e2 = (1 / len(signal[start_sample:end_sample])) * math.sqrt(e)
                     s.append(e2)
@@ -96,12 +99,12 @@ class classification():
                 signal = self.band_all_patient[patient][:, num_electrode]
                 s = []
                 for i in range(len(self.onset_q)):
-                    start_sample = int(self.onset_q[i] - 0.5) * self.fs
-                    end_sample = int(self.onset_q[i] + 2.5) * self.fs
+                    start_sample = int(self.onset_q[i] - self.t_min) * self.fs
+                    end_sample = int(self.onset_q[i] + self.step) * self.fs
                     s.append(np.max(signal[start_sample:end_sample]))
                 for i in range(len(self.onset_a)):
-                    start_sample = int(self.onset_a[i] - 0.5) * self.fs
-                    end_sample = int(self.onset_a[i] + 2.5) * self.fs
+                    start_sample = int(self.onset_a[i] - self.t_min) * self.fs
+                    end_sample = int(self.onset_a[i] + self.step) * self.fs
                     s.append(np.max(signal[start_sample:end_sample]))
                 ax = self.plot_class(s, ax, num_electrode)
             ax.set_xlabel('num_electrode', fontsize=40)
@@ -120,16 +123,18 @@ class classification():
                 signal = self.band_all_patient[patient][:, num_electrode]
                 s = []
                 for i in range(len(self.onset_q)):
-                    start_sample = int(self.onset_q[i] - 0.5) * self.fs
-                    end_sample = int(self.onset_q[i] + 2.5) * self.fs
+                    start_sample = int(self.onset_q[i] - self.t_min) * self.fs
+                    end_sample = int(self.onset_q[i] + self.step) * self.fs
                     s.append(np.var(signal[start_sample:end_sample]))
                 for i in range(len(self.onset_a)):
-                    start_sample = int(self.onset_a[i] - 0.5) * self.fs
-                    end_sample = int(self.onset_a[i] + 2.5) * self.fs
+                    start_sample = int(self.onset_a[i] - self.t_min) * self.fs
+                    end_sample = int(self.onset_a[i] + self.step) * self.fs
                     s.append(np.var(signal[start_sample:end_sample]))
                 ax=self.plot_class(s,ax,num_electrode)
             ax.set_xlabel('num_electrode', fontsize=40)
             ax.set_ylabel('variance', fontsize=40)
             ax.set_title('patinet='+str(patient), fontsize=40)
             fig.savefig(p_avg+'patinet_'+str(patient))
+
+
 

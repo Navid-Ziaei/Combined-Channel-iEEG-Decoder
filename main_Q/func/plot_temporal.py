@@ -27,5 +27,5 @@ def plot_temporal_signal(raw_car_all,band_all_patient,onset_question,offset_ques
     #plt.show()
     plt.xlabel('time', fontsize=15)
     plt.ylabel('temporal_signal', fontsize=15)
-    plt.title('temporal signal of patient=',str(patient),'_electrode =',electrode, fontsize=15)
+    plt.title('temporal signal of patient='+str(patient)+'_electrode ='+electrode, fontsize=15)
     plt.savefig(p2+"temporal_signal")
