@@ -2,6 +2,7 @@ from main_Q.func.plot_temporal import plot_temporal_signal
 from ieeg_func.plot_classification import classification
 from main_Q.func.read_time_annotation import read_time
 from main_Q.func.calculate_synchronous_average import synchronous_avg
+from main_Q.func.create_model import create_model
 from utils import *
 import pickle
 
@@ -27,11 +28,13 @@ settings = {
     # load data "raw_data and data of bands"
     'load_data':True,
     #plot temporal signal of one patient
-    'temporal_signal':True,
-    # find output_classification of signal_common electrode
-    'output_classification': True,
+    'temporal_signal':False,
     #find synchronous average
-    'sync_AVG': True
+    'sync_AVG': False,
+    # find output_classification of signal_common electrode
+    'output_classification': False,
+    #create model for single patient
+    'create_model_single':True
 }
 
 
@@ -80,17 +83,43 @@ if settings['sync_AVG']:
 
 if settings['output_classification']:
     feature_set={'AVG':True ,'RMS':True , 'max_peak':True , 'variance':True}
+    num_patient=47
     cls=classification(raw_car_all,band_all_patient2,band_all_patient_nohil2,onset_question,onset_answer
-                       ,fs,path_save_result,t_min=0.5,step=2.5,num_patient=2)
+                       ,fs,path_save_result,num_patient,t_min=0.5,step=2.5,allow_plot=False)
 
     if feature_set['RMS']:
-        cls.class_rms()
+        rms=cls.class_rms()
     if feature_set['AVG']:
-        cls.class_avg(window_size=20)
+        avg=cls.class_avg(window_size=20)
     if feature_set['max_peak']:
-        cls.class_max_peak()
+        max_peak=cls.class_max_peak()
     if feature_set['variance']:
-        cls.class_variance()
+        variance=cls.class_variance()
+
+    feature_matrix=cls.create_feature_matrix()
+    with open(paths.path_save_data + 'feature_matrix.txt', 'wb') as f:
+        pickle.dump(feature_matrix, f)
+
+
+if settings['create_model_single']:
+    with open(paths.path_load_data + 'feature_matrix.txt', 'rb') as f:
+        feature_matrix = pickle.load(f)
+    # type_classification : 'log_reg' or 'SVM' or 'Naive_bayes'
+    num_patient = 47
+    model=create_model(feature_matrix,num_patient,path_save_result,type_classification= 'log_reg')
+    f_measure_all,precision_all,recall_all=model.model_single()
+    model.save_plot_result(raw_car_all)
+    model2 = create_model(feature_matrix, num_patient, path_save_result, type_classification='SVM')
+    f_measure_all, precision_all, recall_all = model2.model_single()
+    model2.save_plot_result(raw_car_all)
+    model3= create_model(feature_matrix, num_patient, path_save_result, type_classification='Naive_bayes')
+    f_measure_all, precision_all, recall_all = model3.model_single()
+    model3.save_plot_result(raw_car_all)
+
+
+
+
+print('end')
 
 
 

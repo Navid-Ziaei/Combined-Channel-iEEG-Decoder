@@ -109,9 +109,10 @@ if settings['classification']:
     onset_music=np.arange(0,390,60)
     onset_speech=np.arange(30,390,60)
     feature_set = {'AVG': True, 'RMS': True}
+    num_patient=6
 
     cls = classification(raw_car_all, band_all_patient2, band_all_patient_nohil2, onset_music, onset_speech
-                         , fs, path_save_result,t_min=0.5,step=30, num_patient=6)
+                         , fs, path_save_result,num_patient,t_min=0.5,step=30,allow_plot=True)
 
     if feature_set['RMS']:
         cls.class_rms()
