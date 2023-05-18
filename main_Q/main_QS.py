@@ -3,6 +3,7 @@ from ieeg_func.plot_classification import classification
 from main_Q.func.read_time_annotation import read_time
 from main_Q.func.calculate_synchronous_average import synchronous_avg
 from main_Q.func.create_model import create_model
+from main_Q.func.PCA import plot_PCA
 from utils import *
 import pickle
 
@@ -34,7 +35,8 @@ settings = {
     # find output_classification of signal_common electrode
     'output_classification': False,
     #create model for single patient
-    'create_model_single':True
+    'create_model_single':False,
+    'PCA':True
 }
 
 
@@ -97,27 +99,32 @@ if settings['output_classification']:
         variance=cls.class_variance()
 
     feature_matrix=cls.create_feature_matrix()
-    with open(paths.path_save_data + 'feature_matrix.txt', 'wb') as f:
-        pickle.dump(feature_matrix, f)
+    # with open(paths.path_save_data + 'feature_matrix.txt', 'wb') as f:
+    #    pickle.dump(feature_matrix, f)
 
 
 if settings['create_model_single']:
     with open(paths.path_load_data + 'feature_matrix.txt', 'rb') as f:
         feature_matrix = pickle.load(f)
     # type_classification : 'log_reg' or 'SVM' or 'Naive_bayes'
+    # type_balancing :  'over_sampling' or 'under_sampling'  or 'over&down_sampling' or 'weighted_losfunc'
+    # notice that for classification Naive_bayes don't use 'weighted_losfunc' way for balancing
+    list_type_balancing=['over_sampling' , 'under_sampling' , 'over&down_sampling','weighted_losfunc']
+    list_type_classification=['log_reg' ,'SVM' , 'Naive_bayes']
     num_patient = 47
-    model=create_model(feature_matrix,num_patient,path_save_result,type_classification= 'log_reg')
-    f_measure_all,precision_all,recall_all=model.model_single()
-    model.save_plot_result(raw_car_all)
-    model2 = create_model(feature_matrix, num_patient, path_save_result, type_classification='SVM')
-    f_measure_all, precision_all, recall_all = model2.model_single()
-    model2.save_plot_result(raw_car_all)
-    model3= create_model(feature_matrix, num_patient, path_save_result, type_classification='Naive_bayes')
-    f_measure_all, precision_all, recall_all = model3.model_single()
-    model3.save_plot_result(raw_car_all)
+
+    for type_balancing in list_type_balancing:
+        for type_classification in list_type_classification:
+            model = create_model(feature_matrix, num_patient, path_save_result, type_balancing,type_classification)
+            f_measure_all, precision_all, recall_all = model.model_single()
+            model.save_plot_result(raw_car_all)
 
 
 
+if settings['PCA']:
+    with open(paths.path_load_data + 'feature_matrix.txt', 'rb') as f:
+        feature_matrix = pickle.load(f)
+    plot_PCA(raw_car_all,path_save_result,feature_matrix)
 
 print('end')
 

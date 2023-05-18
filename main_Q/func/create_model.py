@@ -5,18 +5,23 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import precision_recall_fscore_support
+from imblearn.over_sampling import SMOTE
+from collections import Counter
+from imblearn.under_sampling import RandomUnderSampler
+from imblearn.pipeline import Pipeline
 import matplotlib.pyplot as plt
 import csv
 import os
 
 class create_model():
-    def __init__(self,feature_matrix,num_patient,path,type_classification):
+    def __init__(self,feature_matrix,num_patient,path,type_balancing,type_classification):
         self.feature_matrix=feature_matrix
         self.type_classification=type_classification
         self.num_patient=num_patient
+        self.type_balancing=type_balancing
 
-        os.makedirs(path + 'create_model_'+type_classification)
-        p2 = os.path.join(path, 'create_model_'+type_classification + '/')
+        os.makedirs(path + 'create_model_'+type_classification+'_'+type_balancing)
+        p2 = os.path.join(path, 'create_model_'+type_classification+'_'+type_balancing + '/')
         self.path = p2
 
 
@@ -24,6 +29,32 @@ class create_model():
         scaler = MinMaxScaler()
         scaler.fit(x)
         return scaler.transform(x)
+
+    def resample_data(self,X, y):
+
+        if self.type_balancing=='over&down_sampling' :
+            # define pipeline
+            over = SMOTE(sampling_strategy=0.58)
+            under = RandomUnderSampler(sampling_strategy=0.66)
+            steps = [('o', over), ('u', under)]
+            pipeline = Pipeline(steps=steps)
+            # transform the dataset
+            X, y = pipeline.fit_resample(X, y)
+
+
+        if self.type_balancing == 'over_sampling':
+            # transform the dataset
+            oversample = SMOTE()
+            X, y = oversample.fit_resample(X, y)
+
+
+        if self.type_balancing == 'under_sampling':
+            # define pipeline
+            under = RandomUnderSampler()
+            X, y = under.fit_resample(X, y)
+
+        return X, y
+
 
     def model_single(self):
         #questin_label=1  answer_label=0
@@ -42,13 +73,19 @@ class create_model():
                 x_norm=self.norm(x)
                 kf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
                 for i, (train_index, test_index) in enumerate(kf.split(x,label)):
-                    x_train,x_test=x_norm[train_index],x_norm[test_index]
-                    y_train, y_test=label[train_index],label[test_index]
+                    x_train2,x_test=x_norm[train_index],x_norm[test_index]
+                    y_train2, y_test=label[train_index],label[test_index]
+                    x_train, y_train = self.resample_data(x_train2, y_train2)
                     if self.type_classification=='log_reg':
-                        #cls=LogisticRegression(penalty='l1', solver='liblinear',random_state=42).fit(x_train,y_train)
-                        cls= LogisticRegression().fit(x_train, y_train)
+                        if self.type_balancing=='weighted_losfunc':
+                            cls = LogisticRegression(class_weight='balanced').fit(x_train, y_train)
+                        else:
+                            cls= LogisticRegression().fit(x_train, y_train)
                     if self.type_classification == 'SVM':
-                        cls = SVC().fit(x_train, y_train)
+                        if self.type_balancing == 'weighted_losfunc':
+                            cls = SVC(class_weight='balanced').fit(x_train, y_train)
+                        else:
+                            cls = SVC().fit(x_train, y_train)
                     if self.type_classification == 'Naive_bayes':
                         cls = GaussianNB().fit(x_train, y_train)
                     y_pre=cls.predict(x_test)
