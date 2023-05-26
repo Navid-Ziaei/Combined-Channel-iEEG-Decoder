@@ -44,7 +44,7 @@ load_data_settings = {
     # but is index of subject_list
     'subject_list': False,
     'save_preprocessed_data': True,
-    'load_preprocessed_data': False
+    'load_preprocessed_data': True
 }
 
 # Create data_path, save_paths and load_paths
