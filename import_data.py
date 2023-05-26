@@ -1,11 +1,12 @@
-import warnings
-import mne
 import mne_bids
-import numpy as np
+import mne
 import pandas as pd
+import os
+import numpy as np
 from collections import OrderedDict
-from ieeg_fmri_validation.utils import resample, smooth_signal, zscore
-
+from ieeg_func.classes.cls import resample, smooth_signal, zscore
+import warnings
+import pickle as pkl
 
 class SubjectDataset(object):
     def __init__(self, input_root, subject, preload=True, **kwargs):
@@ -26,7 +27,7 @@ class SubjectDataset(object):
         bids_path = mne_bids.BIDSPath(subject=self.subject,
                                       task=self.task,
                                       suffix='ieeg',
-                                      extension='vhdr',
+                                      extension='.vhdr',
                                       datatype=self.datatype,
                                       acquisition=self.acquisition,
                                       root=self.root)
@@ -42,7 +43,7 @@ class SubjectDataset(object):
                                       task=self.task,
                                       session=self.session,
                                       suffix='channels', run=self.run,
-                                      extension='tsv',
+                                      extension='.tsv',
                                       datatype=self.datatype,
                                       acquisition=self.acquisition,
                                       root=self.root)
@@ -50,7 +51,7 @@ class SubjectDataset(object):
 
         bids_path = mne_bids.BIDSPath(subject=self.subject,
                                       session=self.session, suffix='electrodes',
-                                      extension='tsv',
+                                      extension='.tsv',
                                       datatype=self.datatype,
                                       acquisition=self.acquisition,
                                       root=self.root)
@@ -108,7 +109,7 @@ class SubjectDataset(object):
             if np.any(np.isnan(self.raw._data)):
                 # self.raw._data[np.isnan(self.raw._data)]=0 # bad hack for nan values
                 warnings.warn('There are NaNs in the data, replacing with 0')
-            self.raw.notch_filter(freqs=np.arange(50, 251, 50))
+            self.raw.notch_filter(freqs=np.arange(50, 251, 50), verbose=False)
             print('Notch filter done')
         return self.raw
 
@@ -118,7 +119,7 @@ class SubjectDataset(object):
             print('CAR done')
         return self.raw_car
 
-    def extract_events(self, plot=True):
+    def extract_events(self, plot=False):
         events, events_id = self._read_events()
         if plot:
             self._plot_events()
@@ -146,25 +147,29 @@ class SubjectDataset(object):
                               start=0,
                               duration=180,
                               color='gray',
-                              event_color={2: 'g', 1: 'r', 5: 'blue'},
+                              event_color={2: 'g', 1: 'r'},
                               bgcolor='w')
 
-    def extract_bands(self, smooth=False):
+    def extract_bands(self, apply_hilbert, smooth=False):
         if self.raw_car is not None:
-            bands2 = self._compute_band_envelopes()
-            bands3 = self._crop_band_envelopes()
-            bands4 = self._resample_band_envelopes()
-            if smooth: self._smooth_band_envelopes()
+            self._compute_band_envelopes(apply_hilbert)
+            self._crop_band_envelopes()
+            self._resample_band_envelopes()
+            if smooth:
+                self._smooth_band_envelopes()
             bands5, bands6, band_block_means = self._compute_block_means_per_band()
-        return bands2, bands3, bands4, bands5
+        return bands5
 
-    def _compute_band_envelopes(self):
+    def _compute_band_envelopes(self, apply_hilbert):
         if self.raw_car is not None:
             bands = {'delta': [1, 4], 'theta': [5, 8], 'alpha': [8, 12], 'beta': [13, 24], 'gamma': [60, 120]}
             self.bands1 = OrderedDict.fromkeys(bands.keys())
             for key in self.bands1.keys():
-                self.bands1[key] = self.raw_car.copy().filter(bands[key][0], bands[key][1]).apply_hilbert(
-                    envelope=True).get_data().T
+                if apply_hilbert:
+                    self.bands1[key] = self.raw_car.copy().filter(bands[key][0], bands[key][1], verbose=False).apply_hilbert(
+                        envelope=True).get_data().T
+                else:
+                    self.bands1[key] = self.raw_car.copy().filter(bands[key][0], bands[key][1], verbose=False).get_data().T
             print('Extracting band envelopes done')
         return self.bands1
 
@@ -196,3 +201,124 @@ class SubjectDataset(object):
                 band7 = band6[key].reshape((-1, 750, band6[key].shape[-1]))  # 13 blocks in chill or 6 in rest
                 self.band_block_means[key] = np.mean(band7, 1)
         return band6, band7, self.band_block_means
+
+
+def get_data(paths, settings):
+    """
+    settings should contain subject_list, number_of_patients, use_only_gamma_band, hilbert
+    :param paths:
+    :param settings:
+    :return:
+    """
+    sub_list = settings['subject_list']
+    number = settings['number_of_patients']
+    use_only_gamma_band = settings['use_only_gamma_band']
+    apply_hilbert = settings['apply_hilbert']
+
+    # List the selected subjects
+    subjects = mne_bids.get_entity_vals(paths.path_dataset, 'subject')
+    selected_subjects = subjects[:number]
+
+    # Choose clinical as default aquisition type
+    acquisition_types = mne_bids.get_entity_vals(os.path.join(paths.path_dataset, 'sub-' + subjects[0], 'ses-iemu', 'ieeg'),
+                                                 'acquisition')
+    acquisition_type = acquisition_types[0]
+    print("Selected Acquisition is {}".format(acquisition_type))
+
+    # Load patients data
+    band_all_patient_with_hilbert, band_all_patient_without_hilbert, subject_list, channel_names_list = [], [], [], []
+    for subject in selected_subjects:
+        if 'iemu' in mne_bids.get_entity_vals(os.path.join(paths.path_dataset, 'sub-' + subject), 'session'):
+            if sub_list is False:
+                print("\n =================================== \n"
+                      "Patient {} from {}".format(subject, len(selected_subjects)))
+                if settings['load_preprocessed_data'] is False:
+                    subject_data = SubjectDataset(paths.path_dataset, subject, acquisition=acquisition_type)
+                    # car: common average reference
+                    raw_car = subject_data.preprocess()
+                    events, events_id = subject_data.extract_events()
+                    band_data_with_hilbert = subject_data.extract_bands(apply_hilbert=True)
+                    band_data_without_hilbert = subject_data.extract_bands(apply_hilbert=False)
+                    channel_names = raw_car.ch_names
+
+                    if settings['save_preprocessed_data'] is True:
+                        file_path_subband_data_with_hilbert = paths.path_processed_data + \
+                                                              'sub{}_sub-bands_data_with_hilbert.pkl'.format(subject)
+                        file_path_subband_data_without_hilbert = paths.path_processed_data + \
+                                                            'sub{}_sub-bands_data_without_hilbert.pkl'.format(subject)
+                        file_path_raw_data = paths.path_processed_data + 'sub{}_raw_car.pkl'.format(subject)
+                        file_path_channel_names = paths.path_processed_data + 'sub{}_raw_car.pkl'.format(subject)
+                        with open(file_path_subband_data_with_hilbert, 'wb') as f:
+                            pkl.dump(band_data_with_hilbert, f)
+                        with open(file_path_subband_data_without_hilbert, 'wb') as f:
+                            pkl.dump(band_data_without_hilbert, f)
+                        with open(file_path_raw_data, 'wb') as f:
+                            pkl.dump(raw_car, f)
+                        with open(file_path_channel_names, 'wb') as f:
+                            pkl.dump(channel_names, f)
+                else:
+                    file_path_subband_data_with_hilbert = paths.path_processed_data + \
+                                                          'sub{}_sub-bands_data_with_hilbert.pkl'.format(subject)
+                    file_path_subband_data_without_hilbert = paths.path_processed_data + \
+                                                             'sub{}_sub-bands_data_without_hilbert.pkl'.format(subject)
+                    file_path_raw_data = paths.path_processed_data + 'sub{}_raw_car.pkl'.format(subject)
+                    file_path_channel_names = paths.path_processed_data + 'sub{}_raw_car.pkl'.format(subject)
+                    if os.path.isfile(file_path_subband_data_without_hilbert):
+                        # Load the data from the pickle file
+                        with open(file_path_subband_data_with_hilbert, 'rb') as f:
+                            band_data_with_hilbert = pkl.load(f)
+                        with open(file_path_subband_data_without_hilbert, 'rb') as f:
+                            band_data_without_hilbert = pkl.load(f)
+                        with open(file_path_raw_data, 'rb') as f:
+                            raw_car = pkl.load(f)
+                        with open(file_path_channel_names, 'rb') as f:
+                            channel_names = pkl.load(f)
+                    else:
+                        raise ValueError(f"The file '{file_path_subband_data_without_hilbert}' does not exist. Put "
+                                         f"the data in this directory or"
+                                         f"run the code with load_preprocessed_data=False to generate the data")
+                band_all_patient_with_hilbert.append(band_data_with_hilbert)
+                band_all_patient_without_hilbert.append(band_data_without_hilbert)
+                channel_names_list.append(channel_names)
+            subject_list.append(subject)
+    return band_all_patient_with_hilbert, band_all_patient_without_hilbert, subject_list, channel_names_list
+
+
+def load_raw_data(paths, settings):
+    """
+    Load raw data
+    :param paths:
+    :param settings:
+    :return:
+    """
+    number = settings['number_of_patients']
+
+    # List the selected subjects
+    subjects = mne_bids.get_entity_vals(paths.path_dataset, 'subject')
+    selected_subjects = subjects[:number]
+
+    # Choose clinical as default aquisition type
+    acquisition_types = mne_bids.get_entity_vals(
+        os.path.join(paths.path_dataset, 'sub-' + subjects[0], 'ses-iemu', 'ieeg'),
+        'acquisition')
+    acquisition_type = acquisition_types[0]
+    print("Selected Acquisition is {}".format(acquisition_type))
+
+    # Load patients data
+    raw_car_all = []
+    for subject in selected_subjects:
+        if 'iemu' in mne_bids.get_entity_vals(os.path.join(paths.path_dataset, 'sub-' + subject), 'session'):
+            print("\n =================================== \n"
+                  "Patient {} from {}".format(subject, len(selected_subjects)))
+            file_path_raw_data = paths.path_processed_data + 'sub{}_raw_car.pkl'.format(subject)
+            if os.path.isfile(file_path_raw_data):
+                # Load the data from the pickle file
+                with open(file_path_raw_data, 'rb') as f:
+                    raw_car = pkl.load(f)
+
+            else:
+                raise ValueError(
+                    f"The file '{file_path_raw_data}' does not exist. Put the data in this directory or"
+                    f"run the code with load_preprocessed_data=False to generate the data")
+
+            raw_car_all.append(raw_car)
