@@ -5,7 +5,6 @@ import os
 import numpy as np
 from collections import OrderedDict
 from ieeg_func.classes.cls import resample, smooth_signal, zscore
-import warnings
 
 
 class SubjectDataset(object):
@@ -150,21 +149,21 @@ class SubjectDataset(object):
                               event_color={2: 'g', 1: 'r'},
                               bgcolor='w')
 
-    def extract_bands(self, apply_hilbert, smooth=False):
+    def extract_bands(self,hilber, smooth=False):
         if self.raw_car is not None:
-            bands2 = self._compute_band_envelopes(apply_hilbert)
+            bands2 = self._compute_band_envelopes(hilber)
             bands3 = self._crop_band_envelopes()
             bands4 = self._resample_band_envelopes()
             if smooth: self._smooth_band_envelopes()
             bands5, bands6, band_block_means = self._compute_block_means_per_band()
         return bands5
 
-    def _compute_band_envelopes(self, apply_hilbert):
+    def _compute_band_envelopes(self, hilber):
         if self.raw_car is not None:
             bands = {'delta': [1, 4], 'theta': [5, 8], 'alpha': [8, 12], 'beta': [13, 24], 'gamma': [60, 120]}
             self.bands1 = OrderedDict.fromkeys(bands.keys())
             for key in self.bands1.keys():
-                if apply_hilbert:
+                if hilber:
                     self.bands1[key] = self.raw_car.copy().filter(bands[key][0], bands[key][1]).apply_hilbert(
                         envelope=True).get_data().T
                 else:
@@ -202,42 +201,25 @@ class SubjectDataset(object):
         return band6, band7, self.band_block_means
 
 
-def gdata(bids_dir, settings):
-    """
-    settings should contain subject_list, number_of_patients, just_gamma, hilbert
-    :param bids_dir:
-    :param settings:
-    :return:
-    """
-    sub_list = settings['subject_list']
-    number = settings['number_of_patients']
-    just_gamma = settings['just_gamma']
-    apply_hilbert = settings['apply_hilbert']
-
-    # List the selected subjects
+def gdata(bids_dir,sub_list,number,just_gamma,hilber):
     subjects = mne_bids.get_entity_vals(bids_dir, 'subject')
-    selected_subjects = subjects[:number]
-
-    # Choose clinical as default aquisition type
-    acquisition_types = mne_bids.get_entity_vals(os.path.join(bids_dir, 'sub-' + subjects[0], 'ses-iemu', 'ieeg'),
-                                                 'acquisition')
-    acquisition_type = acquisition_types[0]
-    print("Selected Acquisition is {}".format(acquisition_type))
-
-    # Load patients data
-    band_all_patient, raw_car_all, subject_list = [], [], []
-    for subject in selected_subjects:
+    subjects2 = subjects[:number]
+    acqs = mne_bids.get_entity_vals(os.path.join(bids_dir, 'sub-' + subjects[0], 'ses-iemu', 'ieeg'), 'acquisition')
+    acq = acqs[0]
+    band_all_patient=[]
+    raw_car_all=[]
+    subject_list = []
+    for subject in subjects2:
         if 'iemu' in mne_bids.get_entity_vals(os.path.join(bids_dir, 'sub-' + subject), 'session'):
-            if sub_list is False:
-                print("Patient {} from {}".format(subject, len(selected_subjects)))
-                subject_data = SubjectDataset(bids_dir, subject, acquisition=acquisition_type)
-                raw_car = subject_data.preprocess()
-                events, events_id = subject_data.extract_events()
-                band = subject_data.extract_bands(apply_hilbert)
+            if sub_list==False:
+                s = SubjectDataset(bids_dir, subject, acquisition=acq)
+                raw_car = s.preprocess()
+                events, events_id = s.extract_events()
+                band= s.extract_bands(hilber)
                 if just_gamma:
                     band_all_patient.append(band['gamma'])
                 else:
                     band_all_patient.append(band)
                 raw_car_all.append(raw_car)
             subject_list.append(subject)
-    return band_all_patient, raw_car_all, subject_list
+    return band_all_patient,raw_car_all,subject_list

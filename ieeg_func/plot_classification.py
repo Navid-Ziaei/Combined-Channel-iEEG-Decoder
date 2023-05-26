@@ -6,7 +6,7 @@ import pandas as pd
 import os
 
 
-class EEGClassifier:
+class classification():
     def __init__(self, raw_car_all, band_all_patient, band_all_patient_nohil, onset_q, onset_a, fs, path, num_patient,
                  t_min, step, allow_plot):
         self.raw_car_all = raw_car_all
@@ -15,7 +15,9 @@ class EEGClassifier:
         self.onset_q = onset_q
         self.onset_a = onset_a
         self.fs = fs
-        self.path = path
+        os.makedirs(path + 'classification')
+        p2 = os.path.join(path, 'classification' + '/')
+        self.path = p2
         self.num_patient = num_patient
         self.t_min = t_min
         self.step = step
