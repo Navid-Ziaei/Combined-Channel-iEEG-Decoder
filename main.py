@@ -47,7 +47,7 @@ settings = {
     'synchronous_average': True,
     'parameter_synchronous_average': {'num_patient': 1,
                                       't_min': 0.5,
-                                      'step': 4.5},
+                                      'step': 2.5},
     # Plot wavelet of raw data of signal each patient
     'wavelet': True,
     'parameter_wavelet': {'patient': 2,
@@ -59,13 +59,13 @@ settings = {
                      'max_peak': True,
                      'variance': True},
     'plot_class_conditional_average': True,
-    # for task:'speech&music', step=30 , for task:'question&answer', step=2.5
+    # for task:'speech&music', step=29.5 , for task:'question&answer', step=2.5
     # Notice that 't_min'+'step' must be integer
     'parameter_get_feature': {'num_patient_get_feature': 2,
                               'num_patient_plot_class_conditional_average': 2,
                               'window_size': 250,
                               't_min': 0.5,
-                              'step': 4.5},
+                              'step': 2.5},
     'save_feature_matrix': True,
     'load_feature_matrix': False,
     # Model
@@ -73,9 +73,9 @@ settings = {
     # Specify type_balancing :  'over_sampling' or 'under_sampling'  or 'over&down_sampling' or 'weighted_losfunc'
     # Notice that for classification Naive_bayes don't use 'weighted_losfunc' way for balancing
     'classification': True,
-    'list_type_balancing': {'over_sampling': False,
+    'list_type_balancing': {'over_sampling': True,
                             'under_sampling': True,
-                            'over&down_sampling': False,
+                            'over&down_sampling': True,
                             'weighted_losfunc': True},
     'list_type_classification': {'Logistic_regression': True,
                                  'SVM': True,
