@@ -20,12 +20,12 @@ def time_ann(path):
     return onset, offset
 
 
-def read_time(task, t_min):
+def read_time(task, t_min, paths):
     if task == 'question&answer':
         onset_1, offset_1 = time_ann(
-            path="F:/maryam_sh/dataset/stimuli/annotations/sound/sound_annotation_questions.tsv")
+            path= paths.path_dataset + "/stimuli/annotations/sound/sound_annotation_questions.tsv")
         onset_0, offset_0 = time_ann(
-            path="F:/maryam_sh/dataset/stimuli/annotations/sound/sound_annotation_sentences.tsv")
+            path= paths.path_dataset + "/stimuli/annotations/sound/sound_annotation_sentences.tsv")
 
         # remove onset of question from onset of answer
         onset_1_int = [int(x) for x in onset_1]

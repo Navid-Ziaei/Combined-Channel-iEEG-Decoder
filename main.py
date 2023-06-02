@@ -4,7 +4,7 @@ from model import *
 from import_data import *
 
 # set device
-device = 'system_lab'
+device = 'navid_lab'
 if device.lower() == 'navid':
     dataset_path = 'F:/Datasets/ieeg_visual/ds003688-download/'
     processed_data_path = 'F:/maryam_sh/load_data/'
@@ -24,21 +24,16 @@ else:
 # settings
 # first determine which task you want
 settings = {
-    # Specify frequency band
-    'band': 'gamma',
-    # task : 'speech&music' , 'question&answer'
-    'task': 'question&answer',
-    # Get histogram of electrodes of patients
-    'generate_electrode_histogram': True,
+    'band': 'gamma',  # Specify frequency band
+    'task': 'question&answer',  # task : 'speech&music' , 'question&answer'
+    'generate_electrode_histogram': True,  # Get histogram of electrodes of patients
     'print_analyze_electrode_histogram': True,
-    # Setting parameter
-    'fs': 25,
+    'fs': 25,  # Sampling frequency
     'final_time': 150,
     # Get the synchronous average for common average between 15 patient
     # Notice that it just use for 'speech&music' task
     'plot_common_electrodes_sync_average': True,
-    # Plot temporal signal of one patient
-    'temporal_signal': True,
+    'temporal_signal': True, # Plot temporal signal of one patient
     'parameter_plot_temporal_signal': {'patient': 2,
                                        'electrode': 'T13'},
     # for task:'speech&music', step=29.5 , for task:'question&answer', step=2.5
@@ -87,10 +82,10 @@ settings = {
 }
 
 load_data_settings = {
-    'number_of_patients': 63,
+    'number_of_patients': 3,
     # if 'load_preprocessed_data':False, function create preprocessed_data, else it just load data
-    'load_preprocessed_data': True,
-    'save_preprocessed_data': False
+    'load_preprocessed_data': False,
+    'save_preprocessed_data': True
 }
 
 # Create data_path, save_paths and load_paths
@@ -114,7 +109,8 @@ if settings['generate_electrode_histogram']:
 # if task is 'speech&music' : (onset_1,offset_1) refer to music / (onset_0,offset_0) refer to speech
 # if task is 'question&answer' : (onset_1,offset_1) refer to question / (onset_0,offset_0) refer to answer
 onset_1, offset_1, onset_0, offset_0 = read_time(task=settings['task'],
-                                                 t_min=settings['parameter_synchronous_average']['t_min'])
+                                                 t_min=settings['parameter_synchronous_average']['t_min'],
+                                                 paths=paths)
 
 " -------------------------------------------------  analyze signal -------------------------------------------------"
 
