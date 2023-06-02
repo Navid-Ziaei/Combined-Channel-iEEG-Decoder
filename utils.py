@@ -23,9 +23,9 @@ def time_ann(path):
 def read_time(task, t_min, paths):
     if task == 'question&answer':
         onset_1, offset_1 = time_ann(
-            path= paths.path_dataset + "/stimuli/annotations/sound/sound_annotation_questions.tsv")
+            path=paths.path_dataset + "/stimuli/annotations/sound/sound_annotation_questions.tsv")
         onset_0, offset_0 = time_ann(
-            path= paths.path_dataset + "/stimuli/annotations/sound/sound_annotation_sentences.tsv")
+            path=paths.path_dataset + "/stimuli/annotations/sound/sound_annotation_sentences.tsv")
 
         # remove onset of question from onset of answer
         onset_1_int = [int(x) for x in onset_1]
@@ -134,14 +134,21 @@ class Paths:
         base_path = dir_path + '/results/' + settings['task'] + '/' + datetime.datetime.now().strftime(
             '%Y-%m-%d-%H-%M-%S') + '/'
 
-        self.path_processed_data = path_processed_data
         self.path_dataset = path_dataset
-        self.path_save_data = dir_path + '/data/'
-        self.path_results = base_path + 'plots/'
-        self.path_store_model = base_path + 'hyper_param_set/saved_models/'
-        Path(self.path_results).mkdir(parents=True, exist_ok=True)
-        Path(self.path_store_model).mkdir(parents=True, exist_ok=True)
+        # Place where we save preprocessed data
+        self.path_processed_data = path_processed_data
         Path(self.path_processed_data).mkdir(parents=True, exist_ok=True)
+        # Place where we save features
+        self.path_save_data = dir_path + '/data/'
+        Path(self.path_save_data).mkdir(parents=True, exist_ok=True)
+        # Place where we save figures
+        self.path_results = base_path + 'plots/'
+        Path(self.path_results).mkdir(parents=True, exist_ok=True)
+        # Place where we save model hyperparameters
+        self.path_store_model = base_path + 'hyper_param_set/saved_models/'
+        Path(self.path_store_model).mkdir(parents=True, exist_ok=True)
+        
+
 
         if settings['plot_common_electrodes_sync_average']:
             self.path_results_plot_common_electrodes = self.path_results + '/plot_common_electrodes/'
