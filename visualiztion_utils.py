@@ -1,5 +1,4 @@
 import numpy as np
-import math
 import matplotlib.pyplot as plt
 from utils import moving_avg
 import pandas as pd
@@ -8,6 +7,7 @@ from scipy import stats
 from sklearn.decomposition import PCA
 from collections import Counter
 from multitaper_spectrogram_python import multitaper_spectrogram
+from get_feature_all import *
 
 
 class QAVisualizer:
@@ -32,19 +32,6 @@ class QAVisualizer:
         colors = {'0': 'green', '1': 'red'}
         ax.scatter(df['x'], df['y'], c=df['label'].map(colors), marker='o')
         return ax
-
-    def get_feature(self, signal_with_hilbert, signal_without_hilbert, signal_with_hilbert_movavg, feature):
-        if self.feature_list['AVG']:
-            feature['AVG'].append(np.mean(signal_with_hilbert_movavg))
-        if self.feature_list['RMS']:
-            e = sum([x ** 2 for x in signal_without_hilbert])
-            feature['RMS'].append(1 / len(signal_without_hilbert) * math.sqrt(e))
-        if self.feature_list['max_peak']:
-            feature['max_peak'].append(np.max(signal_with_hilbert))
-        if self.feature_list['variance']:
-            feature['variance'].append(np.var(signal_with_hilbert))
-
-        return feature
 
     def get_feature_all(self, data_with_hilbert, data_without_hilbert):
         """
@@ -74,17 +61,22 @@ class QAVisualizer:
                     for i in range(len(self.onset_1)):
                         start_sample = int(self.onset_1[i] - t_min) * self.fs
                         end_sample = int(self.onset_1[i] + step) * self.fs
-                        feature = self.get_feature(signal_with_hilbert[start_sample:end_sample],
-                                                   signal_without_hilbert[start_sample:end_sample],
-                                                   signal_with_hilbert_movavg[start_sample:end_sample],
-                                                   feature)
+                        feature = get_feature(self.feature_list,
+                                              signal_with_hilbert[start_sample:end_sample],
+                                              signal_without_hilbert[start_sample:end_sample],
+                                              signal_with_hilbert_movavg[start_sample:end_sample],
+                                              feature,
+                                              self.settings['fs'])
+
                     for i in range(len(self.onset_0)):
                         start_sample = int(self.onset_0[i] - t_min) * self.fs
                         end_sample = int(self.onset_0[i] + step) * self.fs
-                        feature = self.get_feature(signal_with_hilbert[start_sample:end_sample],
-                                                   signal_without_hilbert[start_sample:end_sample],
-                                                   signal_with_hilbert_movavg[start_sample:end_sample],
-                                                   feature)
+                        feature = get_feature(self.feature_list,
+                                              signal_with_hilbert[start_sample:end_sample],
+                                              signal_without_hilbert[start_sample:end_sample],
+                                              signal_with_hilbert_movavg[start_sample:end_sample],
+                                              feature,
+                                              self.settings['fs'])
                     feature = pd.DataFrame(feature)
                     single_patient_feature.append(feature)
 
@@ -106,7 +98,8 @@ class QAVisualizer:
             feature_matrix_all = []
             num_feature = sum(self.feature_list.values())
             for patient in range(len(self.feature_all_patient)):
-                feature_matrix = np.zeros((len(self.channel_names[patient]), len(self.onset_1)+len(self.onset_0), num_feature))
+                feature_matrix = np.zeros(
+                    (len(self.channel_names[patient]), len(self.onset_1) + len(self.onset_0), num_feature))
                 for electrode in range(len(self.channel_names[patient])):
                     feature_matrix[electrode, :, :] = self.feature_all_patient[patient][electrode].values
 
@@ -234,7 +227,7 @@ class SynchronousAvg:
         self.path = path
         self.t_min = settings['parameter_synchronous_average']['t_min']
         self.step = settings['parameter_synchronous_average']['step']
-        self.time = np.arange(0, self.step+self.t_min, 1 / self.fs)
+        self.time = np.arange(0, self.step + self.t_min, 1 / self.fs)
 
     def calculate_confidence_interval(self, data, conf_level):
         sem = stats.sem(data, axis=0)
@@ -325,6 +318,7 @@ def plot_pca(channel_names_list, path, feature_matrix, settings):
             for label2, _ in counter.items():
                 row_ix = np.where(label == label2)[0]
                 plt.scatter(x[row_ix, 0], x[row_ix, 1], label=str(label2))
+                plt.legend()
             plt.title('patient=' + str(patient) + '_electrode=' + ch_name[electrode], fontsize=15)
             plt.savefig(path.path_results_get_pca[patient] + 'p_' + str(patient) + '_electrode=' + ch_name[electrode])
             plt.legend()

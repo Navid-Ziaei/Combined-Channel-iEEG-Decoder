@@ -169,7 +169,7 @@ class Paths:
             self.path_results_synch_average_common_electrode = path_results_synch_avg + '/patient_common_electrode/'
             Path(self.path_results_synch_average_common_electrode).mkdir(parents=True, exist_ok=True)
 
-        if settings['get_feature']:
+        if settings['plot_class_conditional_average']:
             path_results_get_feature = self.path_results + '/features/'
             Path(path_results_get_feature).mkdir(parents=True, exist_ok=True)
 

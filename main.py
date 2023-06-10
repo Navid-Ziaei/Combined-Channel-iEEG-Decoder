@@ -4,13 +4,13 @@ from model import *
 from import_data import *
 
 # set device
-device = 'navid_lab'
+device = 'system_lab'
 if device.lower() == 'navid':
     dataset_path = 'F:/Datasets/ieeg_visual/ds003688-download/'
     processed_data_path = 'F:/maryam_sh/load_data/'
 elif device.lower() == 'maryam':
     dataset_path = 'E:/Thesis/dataset/dataset/'
-    processed_data_path = 'E:/Thesis/derived data'
+    processed_data_path = 'E:/Thesis/derived data/'
 elif device.lower() == 'system_lab':
     dataset_path = 'F:/maryam_sh/dataset/'
     processed_data_path = 'F:/maryam_sh/load_data/'
@@ -32,33 +32,37 @@ settings = {
     'final_time': 150,
     # Get the synchronous average for common average between 15 patient
     # Notice that it just use for 'speech&music' task
-    'plot_common_electrodes_sync_average': True,
-    'temporal_signal': True, # Plot temporal signal of one patient
+    'plot_common_electrodes_sync_average': False,
+    'temporal_signal': False,  # Plot temporal signal of one patient
     'parameter_plot_temporal_signal': {'patient': 2,
                                        'electrode': 'T13'},
     # for task:'speech&music', step=29.5 , for task:'question&answer', step=2.5
     # Get the synchronous average between trials for all electrode of each patient
     # Notice that 't_min'+'step' must be integer
-    'synchronous_average': True,
+    'synchronous_average': False,
     'parameter_synchronous_average': {'num_patient': 1,
                                       't_min': 0.5,
                                       'step': 2.5},
     # Plot wavelet of raw data of signal each patient
-    'wavelet': True,
+    'wavelet': False,
     'parameter_wavelet': {'patient': 2,
                           'electrode': 'T13'},
     # Get feature and visualize features for all electrode of each patient
     'get_feature': True,
-    'feature_list': {'AVG': True,
-                     'RMS': True,
-                     'max_peak': True,
-                     'variance': True},
-    'plot_class_conditional_average': True,
+    'feature_list': {'AVG': True, 'RMS': True, 'Max_peak': True, 'Variance': True, 'Coastline': True,
+                     'Band_powers': True,'Spectral_edge_frequency': True, 'Skewness': True, 'Kurtosis': True,
+                     'Autocorrelation_function': True,'Hjorth_mobility': True, 'Hjorth_complexity': True,
+                     'Nonlinear_energy': True,'Spectral_entropy': True,'Sample_entropy': True, 'Renyi_entropy': True,
+                     'Shannon_entropy': True, 'Spikes': True,'Fractal_dimension': True},
+
+
+    'plot_class_conditional_average': False,
     # for task:'speech&music', step=29.5 , for task:'question&answer', step=2.5
+    # for task:'speech&music', window_size=200 , for task:'question&answer', window_size=20
     # Notice that 't_min'+'step' must be integer
-    'parameter_get_feature': {'num_patient_get_feature': 2,
+    'parameter_get_feature': {'num_patient_get_feature': 63,
                               'num_patient_plot_class_conditional_average': 2,
-                              'window_size': 250,
+                              'window_size': 20,
                               't_min': 0.5,
                               'step': 2.5},
     'save_feature_matrix': True,
@@ -70,21 +74,21 @@ settings = {
     'classification': True,
     'list_type_balancing': {'over_sampling': True,
                             'under_sampling': True,
-                            'over&down_sampling': True,
-                            'weighted_losfunc': True},
+                            'over&down_sampling': False,
+                            'weighted_losfunc': False},
     'list_type_classification': {'Logistic_regression': True,
                                  'SVM': True,
                                  'Naive_bayes': True},
-    'parameter_classification': {'num_patient': 2},
+    'parameter_classification': {'num_patient': 63},
     # Get Principal Component Analysis
     'get_pca': True,
-    'parameter_get_pca': {'num_patient': 2}
+    'parameter_get_pca': {'num_patient': 3}
 }
 
 load_data_settings = {
-    'number_of_patients': 3,
+    'number_of_patients': 63,
     # if 'load_preprocessed_data':False, function create preprocessed_data, else it just load data
-    'load_preprocessed_data': False,
+    'load_preprocessed_data': True,
     'save_preprocessed_data': True
 }
 
