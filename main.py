@@ -60,7 +60,7 @@ settings = {
     # for task:'speech&music', step=29.5 , for task:'question&answer', step=2.5
     # for task:'speech&music', window_size=200 , for task:'question&answer', window_size=20
     # Notice that 't_min'+'step' must be integer
-    'parameter_get_feature': {'num_patient_get_feature': 63,
+    'parameter_get_feature': {'num_patient_get_feature': 47,
                               'num_patient_plot_class_conditional_average': 2,
                               'window_size': 20,
                               't_min': 0.5,
@@ -79,7 +79,7 @@ settings = {
     'list_type_classification': {'Logistic_regression': True,
                                  'SVM': True,
                                  'Naive_bayes': True},
-    'parameter_classification': {'num_patient': 63},
+    'parameter_classification': {'num_patient': 47},
     # Get Principal Component Analysis
     'get_pca': True,
     'parameter_get_pca': {'num_patient': 3}
