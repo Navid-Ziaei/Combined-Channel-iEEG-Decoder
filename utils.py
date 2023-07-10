@@ -108,6 +108,7 @@ class Paths:
         self.path_results_get_feature_features = {}
         self.path_results_classification = None
         self.path_results_classifier = {}
+        self.path_results_ensemble_classifier = {}
         self.path_results_get_pca = {}
         self.path_results_wavelet = None
         self.path_processed_data = ''
@@ -144,11 +145,9 @@ class Paths:
         # Place where we save figures
         self.path_results = base_path + 'plots/'
         Path(self.path_results).mkdir(parents=True, exist_ok=True)
-        # Place where we save model hyperparameters
+        # Place where we save model hyper parameters
         self.path_store_model = base_path + 'hyper_param_set/saved_models/'
         Path(self.path_store_model).mkdir(parents=True, exist_ok=True)
-        
-
 
         if settings['plot_common_electrodes_sync_average']:
             self.path_results_plot_common_electrodes = self.path_results + '/plot_common_electrodes/'
@@ -190,6 +189,9 @@ class Paths:
                             self.path_results_classification + '/' + type_classification + '_' + type_balancing + '/'
                         Path(self.path_results_classifier[type_classification + type_balancing]).mkdir(parents=True,
                                                                                                        exist_ok=True)
+
+            self.path_results_ensemble_classifier = self.path_results_classification + '/ensemble_classifier/'
+            Path(self.path_results_ensemble_classifier).mkdir(parents=True, exist_ok=True)
 
         if settings['get_pca']:
             path_results_pca = self.path_results + '/PCA/'

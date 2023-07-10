@@ -47,6 +47,7 @@ class QAVisualizer:
             frq_band_name = self.settings['band']
 
             for patient in range(num_patient):
+                print('patient_', patient, 'from', num_patient)
                 electrodes = self.channel_names[patient]
                 single_patient_feature = []
                 for electrode in electrodes:
@@ -86,10 +87,8 @@ class QAVisualizer:
                 with open(self.path.path_save_data + '/feature_all_patient_df.pkl', 'wb') as f:
                     pkl.dump(self.feature_all_patient, f)
         else:
-            with open(self.path.path_save_data + '/feature_all_patient_df.pkl', 'rb') as f:
+            with open(self.path.path_processed_data + '/feature_all_patient_df.pkl', 'rb') as f:
                 self.feature_all_patient = pkl.load(f)
-
-        return self.feature_all_patient
 
     def create_feature_matrix(self):
         print("\n =================================== \n"
@@ -109,7 +108,7 @@ class QAVisualizer:
                 with open(self.path.path_save_data + '/feature_matrix_all.pkl', 'wb') as f:
                     pkl.dump(feature_matrix_all, f)
         else:
-            with open(self.path.path_save_data + '/feature_matrix_all.pkl', 'rb') as f:
+            with open(self.path.path_processed_data + '/feature_matrix_all.pkl', 'rb') as f:
                 feature_matrix_all = pkl.load(f)
         return feature_matrix_all
 
@@ -129,6 +128,8 @@ class QAVisualizer:
                     ax.set_ylabel(feature_type, fontsize=40)
                     ax.set_title('patient=' + str(patient), fontsize=40)
                     fig.savefig(self.path.path_results_get_feature_features[feature_type] + 'patient_' + str(patient))
+                    fig.savefig(
+                        self.path.path_results_get_feature_features[feature_type] + 'patient_' + str(patient) + '.svg')
 
 
 def plot_comm_elec(common_electrodes, band_all_patient, channel_names_list, onset_1, offset_1, path, settings):
@@ -155,7 +156,7 @@ def plot_comm_elec(common_electrodes, band_all_patient, channel_names_list, onse
     time_dash = onset_1 + offset_1
     time_dash.sort()
     time_dash2 = [i for i in time_dash if i < final_time]
-    plt.figure(figsize=(30, 10))
+    plt.figure(figsize=(30, 10), dpi=300)
     for key in common_electrode_avg.keys():
         n = 0
         for patient_idx in range(len(band_all_patient)):
@@ -167,12 +168,13 @@ def plot_comm_elec(common_electrodes, band_all_patient, channel_names_list, onse
                                                                         num_electrode]
 
         common_electrode_avg[key] = common_electrode_avg[key] / n
-        plt.figure(figsize=(30, 10))
+        plt.figure(figsize=(30, 10), dpi=300)
         plt.plot(time[:final_time * fs], common_electrode_avg[key][:final_time * fs])
         plt.vlines(time_dash2, ymin=-1 * np.ones(len(time_dash2)), ymax=np.ones(len(time_dash2)), colors='red', ls='--',
                    lw=2, label='vline_multiple - partial height')
         plt.title(str(key), fontsize=25)
         plt.savefig(path.path_results_plot_common_electrodes + key)
+        plt.savefig(path.path_results_plot_common_electrodes + key + '.svg')
 
     return common_electrode_avg
 
@@ -196,7 +198,7 @@ def plot_temporal_signal(channel_names_list, band_all_patient, onset_1, offset_1
 
         time_dash_music = np.arange(0, final_time + 30, 30)
 
-        plt.figure(figsize=(80, 10))
+        plt.figure(figsize=(80, 10), dpi=300)
         plt.plot(time[:final_time * fs], signal[:final_time * fs])
         plt.vlines(time_dash2, ymin=-4 * np.ones(len(time_dash2)), ymax=4 * np.ones(len(time_dash2)), colors='red',
                    ls='--',
@@ -209,6 +211,7 @@ def plot_temporal_signal(channel_names_list, band_all_patient, onset_1, offset_1
         plt.ylabel('temporal_signal', fontsize=15)
         plt.title('temporal signal of patient=' + str(patient) + '_electrode =' + electrode, fontsize=15)
         plt.savefig(path.path_results_temporal_signal + "temporal_signal")
+        plt.savefig(path.path_results_temporal_signal + "temporal_signal.svg")
 
     else:
         raise ValueError(f"{electrode} isn't in channel_names_list of patient_{patient}")
@@ -228,6 +231,7 @@ class SynchronousAvg:
         self.t_min = settings['parameter_synchronous_average']['t_min']
         self.step = settings['parameter_synchronous_average']['step']
         self.time = np.arange(0, self.step + self.t_min, 1 / self.fs)
+        self.task = settings['task']
 
     def calculate_confidence_interval(self, data, conf_level):
         sem = stats.sem(data, axis=0)
@@ -266,20 +270,33 @@ class SynchronousAvg:
 
                 ci_l_q, ci_h_q, ci_l_a, ci_h_a, synch_avg_q, synch_avg_a = self.synch_ci(signal)
 
-                plt.figure()
-                plt.plot(self.time, synch_avg_q, color='blue', linewidth=2, label='label_1')
+                plt.figure(dpi=300)
+                if self.task == 'question&answer':
+                    label_1 = 'question'
+                    label_0 = 'answer'
+                if self.task == 'speech&music':
+                    label_1 = 'music'
+                    label_0 = 'speech'
+                plt.plot(self.time, synch_avg_q, color='blue', linewidth=2, label=label_1)
                 plt.fill_between(self.time, ci_l_q, ci_h_q, color='blue', alpha=0.2)
-                plt.plot(self.time, synch_avg_a, color='red', linewidth=2, label='label_0')
+                plt.plot(self.time, synch_avg_a, color='red', linewidth=2, label=label_0)
                 plt.fill_between(self.time, ci_l_a, ci_h_a, color='red', alpha=0.2)
                 plt.title('patient=' + str(patient) + '  electrode=' + electrode, fontsize=15)
                 plt.legend()
                 plt.savefig(
                     self.path.path_results_synchronous_average[patient] + 'p_' + str(patient) + '_elec_' + electrode)
+                plt.savefig(
+                    self.path.path_results_synchronous_average[patient] + 'p_' + str(
+                        patient) + '_elec_' + electrode + '.svg')
 
     def calculate_synch_avg_common_electrode(self, common_electrodes):
         for key in common_electrodes:
             j = 0
-            plt.figure(figsize=(5, 20))
+            plt.figure(figsize=(5, 20), dpi=300)
+            if self.task == 'question&answer':
+                label_legend = ['question', 'answer']
+            if self.task == 'speech&music':
+                label_legend = ['music', 'speech']
             for patient in range(len(self.band_all_patient)):
                 electrodes = self.channel_names_list[patient]
                 if key in electrodes:
@@ -292,9 +309,10 @@ class SynchronousAvg:
                     plt.fill_between(self.time, ci_l_a + j, ci_h_a + j, color='red', alpha=0.2)
                     plt.title('patient_' + str(patient))
                     j = j + 3
-            plt.legend(['question', 'answer'])
+            plt.legend(label_legend)
             plt.title('electrode_' + key)
             plt.savefig(self.path.path_results_synch_average_common_electrode + 'elec_' + key)
+            plt.savefig(self.path.path_results_synch_average_common_electrode + 'elec_' + key + '.svg')
 
 
 def plot_pca(channel_names_list, path, feature_matrix, settings):
@@ -304,24 +322,28 @@ def plot_pca(channel_names_list, path, feature_matrix, settings):
     if settings['task'] == 'question&answer':
         label = np.zeros(67)
         label[0:15] = 1
+        label_legend = ['question', 'answer']
     if settings['task'] == 'speech&music':
         label = np.zeros(13)
         label[0:6] = 1
+        label_legend = ['music', 'speech']
     counter = Counter(label)
+
     for patient in range(num_patient):
         ch_name = channel_names_list[patient]
         for electrode in range(len(ch_name)):
             feature = feature_matrix[patient][electrode, :, :]
             pca = PCA(n_components=2)
             x = pca.fit_transform(feature)
-            plt.figure()
+            plt.figure(dpi=300)
             for label2, _ in counter.items():
                 row_ix = np.where(label == label2)[0]
                 plt.scatter(x[row_ix, 0], x[row_ix, 1], label=str(label2))
-                plt.legend()
+                plt.legend(label_legend)
             plt.title('patient=' + str(patient) + '_electrode=' + ch_name[electrode], fontsize=15)
             plt.savefig(path.path_results_get_pca[patient] + 'p_' + str(patient) + '_electrode=' + ch_name[electrode])
-            plt.legend()
+            plt.savefig(
+                path.path_results_get_pca[patient] + 'p_' + str(patient) + '_electrode=' + ch_name[electrode] + '.svg')
 
 
 def plot_wavelet(path, raw_car_all, settings):
@@ -360,3 +382,4 @@ def plot_wavelet(path, raw_car_all, settings):
     plt.xlabel('time')
     plt.ylabel('frequency')
     fig.savefig(path.path_results_wavelet + 'wavelet_patient' + str(patient) + '_electrode' + electrode)
+    fig.savefig(path.path_results_wavelet + 'wavelet_patient' + str(patient) + '_electrode' + electrode + '.svg')

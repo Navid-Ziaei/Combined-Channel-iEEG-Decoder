@@ -40,7 +40,7 @@ settings = {
     # Get the synchronous average between trials for all electrode of each patient
     # Notice that 't_min'+'step' must be integer
     'synchronous_average': False,
-    'parameter_synchronous_average': {'num_patient': 1,
+    'parameter_synchronous_average': {'num_patient': 3,
                                       't_min': 0.5,
                                       'step': 2.5},
     # Plot wavelet of raw data of signal each patient
@@ -50,11 +50,10 @@ settings = {
     # Get feature and visualize features for all electrode of each patient
     'get_feature': True,
     'feature_list': {'AVG': True, 'RMS': True, 'Max_peak': True, 'Variance': True, 'Coastline': True,
-                     'Band_powers': True,'Spectral_edge_frequency': True, 'Skewness': True, 'Kurtosis': True,
-                     'Autocorrelation_function': True,'Hjorth_mobility': True, 'Hjorth_complexity': True,
-                     'Nonlinear_energy': True,'Spectral_entropy': True,'Sample_entropy': True, 'Renyi_entropy': True,
-                     'Shannon_entropy': True, 'Spikes': True,'Fractal_dimension': True},
-
+                     'Band_powers': True, 'Spectral_edge_frequency': True, 'Skewness': True, 'Kurtosis': True,
+                     'Autocorrelation_function': True, 'Hjorth_mobility': True, 'Hjorth_complexity': True,
+                     'Nonlinear_energy': True, 'Spectral_entropy': True, 'Sample_entropy': True, 'Renyi_entropy': True,
+                     'Shannon_entropy': True, 'Spikes': True, 'Fractal_dimension': True},
 
     'plot_class_conditional_average': False,
     # for task:'speech&music', step=29.5 , for task:'question&answer', step=2.5
@@ -66,23 +65,22 @@ settings = {
                               't_min': 0.5,
                               'step': 2.5},
     'save_feature_matrix': True,
-    'load_feature_matrix': False,
+    'load_feature_matrix': True,
     # Model
     # Specify type_classification : 'Logistic_regression' or 'SVM' or 'Naive_bayes'
     # Specify type_balancing :  'over_sampling' or 'under_sampling'  or 'over&down_sampling' or 'weighted_losfunc'
     # Notice that for classification Naive_bayes don't use 'weighted_losfunc' way for balancing
     'classification': True,
     'list_type_balancing': {'over_sampling': True,
-                            'under_sampling': True,
-                            'over&down_sampling': False,
-                            'weighted_losfunc': False},
-    'list_type_classification': {'Logistic_regression': True,
+                            'under_sampling': False,
+                            'over&down_sampling': False},
+    'list_type_classification': {'Logistic_regression': False,
                                  'SVM': True,
-                                 'Naive_bayes': True},
+                                 'Naive_bayes': False},
     'parameter_classification': {'num_patient': 47},
     # Get Principal Component Analysis
     'get_pca': True,
-    'parameter_get_pca': {'num_patient': 3}
+    'parameter_get_pca': {'num_patient': 10}
 }
 
 load_data_settings = {
@@ -162,12 +160,12 @@ if settings['get_feature']:
                              onset_0=onset_0,
                              path=paths,
                              settings=settings)
-    feature_all_df = class_viz.get_feature_all(data_with_hilbert=band_all_patient_with_hilbert,
-                                               data_without_hilbert=band_all_patient_without_hilbert)
+    class_viz.get_feature_all(data_with_hilbert=band_all_patient_with_hilbert,
+                              data_without_hilbert=band_all_patient_without_hilbert)
 
     feature_all_matrix = class_viz.create_feature_matrix()
 
-    if settings['plot_class_conditional_average']:
+    if settings['plot_class_conditional_average'] and settings['load_feature_matrix'] is False:
         class_viz.plot_class_conditional_average()
 
 " ------------------------------------------------- Classification ---------------------------------------------"
