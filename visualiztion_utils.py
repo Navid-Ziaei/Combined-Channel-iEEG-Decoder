@@ -1,135 +1,7 @@
-import numpy as np
 import matplotlib.pyplot as plt
-from utils import moving_avg
-import pandas as pd
-import pickle as pkl
 from scipy import stats
 from sklearn.decomposition import PCA
-from collections import Counter
 from multitaper_spectrogram_python import multitaper_spectrogram
-from get_feature_all import *
-
-
-class QAVisualizer:
-    def __init__(self, channel_names, onset_1, onset_0, path, settings):
-        print("\n =================================== \n"
-              "extract feature")
-        self.feature_all_patient = []
-        self.channel_names = channel_names
-        self.onset_1 = onset_1
-        self.onset_0 = onset_0
-        self.fs = settings['fs']
-        self.path = path
-        self.settings = settings
-        self.feature_list = settings['feature_list']
-
-    def plot_class(self, s, ax, num_electrode):
-        # self.label[0] (green)/ self.label[1](red)
-        label = ['1'] * len(self.onset_1) + ['0'] * len(self.onset_0)
-        y = [num_electrode] * len(label)
-
-        df = pd.DataFrame(dict(x=y, y=s, label=label))
-        colors = {'0': 'green', '1': 'red'}
-        ax.scatter(df['x'], df['y'], c=df['label'].map(colors), marker='o')
-        return ax
-
-    def get_feature_all(self, data_with_hilbert, data_without_hilbert):
-        """
-        param data_with_hilbert:
-        param data_without_hilbert:
-        return:
-        """
-        if self.settings['load_feature_matrix'] is False:
-            num_patient = self.settings['parameter_get_feature']['num_patient_get_feature']
-            t_min = self.settings['parameter_get_feature']['t_min']
-            step = self.settings['parameter_get_feature']['step']
-            window_size = self.settings['parameter_get_feature']['window_size']
-            frq_band_name = self.settings['band']
-
-            for patient in range(num_patient):
-                print('patient_', patient, 'from', num_patient)
-                electrodes = self.channel_names[patient]
-                single_patient_feature = []
-                for electrode in electrodes:
-                    feature = dict()
-                    for key in self.feature_list.keys():
-                        if self.feature_list[key]:
-                            feature[key] = []
-                    num_electrode = self.channel_names[patient].index(electrode)
-                    signal_with_hilbert = data_with_hilbert[patient][frq_band_name][:, num_electrode]
-                    signal_without_hilbert = data_without_hilbert[patient][frq_band_name][:, num_electrode]
-                    signal_with_hilbert_movavg = moving_avg(signal_with_hilbert, window_size)
-                    for i in range(len(self.onset_1)):
-                        start_sample = int(self.onset_1[i] - t_min) * self.fs
-                        end_sample = int(self.onset_1[i] + step) * self.fs
-                        feature = get_feature(self.feature_list,
-                                              signal_with_hilbert[start_sample:end_sample],
-                                              signal_without_hilbert[start_sample:end_sample],
-                                              signal_with_hilbert_movavg[start_sample:end_sample],
-                                              feature,
-                                              self.settings['fs'])
-
-                    for i in range(len(self.onset_0)):
-                        start_sample = int(self.onset_0[i] - t_min) * self.fs
-                        end_sample = int(self.onset_0[i] + step) * self.fs
-                        feature = get_feature(self.feature_list,
-                                              signal_with_hilbert[start_sample:end_sample],
-                                              signal_without_hilbert[start_sample:end_sample],
-                                              signal_with_hilbert_movavg[start_sample:end_sample],
-                                              feature,
-                                              self.settings['fs'])
-                    feature = pd.DataFrame(feature)
-                    single_patient_feature.append(feature)
-
-                self.feature_all_patient.append(single_patient_feature)
-
-            if self.settings['save_feature_matrix']:
-                with open(self.path.path_save_data + '/feature_all_patient_df.pkl', 'wb') as f:
-                    pkl.dump(self.feature_all_patient, f)
-        else:
-            with open(self.path.path_processed_data + '/feature_all_patient_df.pkl', 'rb') as f:
-                self.feature_all_patient = pkl.load(f)
-
-    def create_feature_matrix(self):
-        print("\n =================================== \n"
-              "convert features from pandas.Dataframe to matrix")
-        if self.settings['load_feature_matrix'] is False:
-            feature_matrix_all = []
-            num_feature = sum(self.feature_list.values())
-            for patient in range(len(self.feature_all_patient)):
-                feature_matrix = np.zeros(
-                    (len(self.channel_names[patient]), len(self.onset_1) + len(self.onset_0), num_feature))
-                for electrode in range(len(self.channel_names[patient])):
-                    feature_matrix[electrode, :, :] = self.feature_all_patient[patient][electrode].values
-
-                feature_matrix_all.append(feature_matrix)
-
-            if self.settings['save_feature_matrix']:
-                with open(self.path.path_save_data + '/feature_matrix_all.pkl', 'wb') as f:
-                    pkl.dump(feature_matrix_all, f)
-        else:
-            with open(self.path.path_processed_data + '/feature_matrix_all.pkl', 'rb') as f:
-                feature_matrix_all = pkl.load(f)
-        return feature_matrix_all
-
-    def plot_class_conditional_average(self):
-        print("\n =================================== \n"
-              "plot features of trials of all electrode for each patient ")
-        num_patient = self.settings['parameter_get_feature']['num_patient_plot_class_conditional_average']
-        for feature_type in self.feature_list.keys():
-            if self.feature_list[feature_type]:
-                for patient in range(num_patient):
-                    fig, ax = plt.subplots(figsize=(60, 40))
-                    for electrode in range(len(self.channel_names[patient])):
-                        s = self.feature_all_patient[patient][electrode][feature_type]
-                        ax = self.plot_class(s, ax, electrode)
-
-                    ax.set_xlabel('num_electrode', fontsize=40)
-                    ax.set_ylabel(feature_type, fontsize=40)
-                    ax.set_title('patient=' + str(patient), fontsize=40)
-                    fig.savefig(self.path.path_results_get_feature_features[feature_type] + 'patient_' + str(patient))
-                    fig.savefig(
-                        self.path.path_results_get_feature_features[feature_type] + 'patient_' + str(patient) + '.svg')
 
 
 def plot_comm_elec(common_electrodes, band_all_patient, channel_names_list, onset_1, offset_1, path, settings):
@@ -156,7 +28,6 @@ def plot_comm_elec(common_electrodes, band_all_patient, channel_names_list, onse
     time_dash = onset_1 + offset_1
     time_dash.sort()
     time_dash2 = [i for i in time_dash if i < final_time]
-    plt.figure(figsize=(30, 10), dpi=300)
     for key in common_electrode_avg.keys():
         n = 0
         for patient_idx in range(len(band_all_patient)):
@@ -175,6 +46,10 @@ def plot_comm_elec(common_electrodes, band_all_patient, channel_names_list, onse
         plt.title(str(key), fontsize=25)
         plt.savefig(path.path_results_plot_common_electrodes + key)
         plt.savefig(path.path_results_plot_common_electrodes + key + '.svg')
+
+        # Save data of plot
+        data = np.column_stack((time[:final_time * fs], common_electrode_avg[key][:final_time * fs]))
+        np.save(path.path_results_plot_common_electrodes + key + '.npy', data)
 
     return common_electrode_avg
 
@@ -206,12 +81,15 @@ def plot_temporal_signal(channel_names_list, band_all_patient, onset_1, offset_1
         plt.vlines(time_dash_music, ymin=-4 * np.ones(len(time_dash_music)), ymax=8 * np.ones(len(time_dash_music)),
                    colors='black', ls='--', lw=2, label='vline_multiple - partial height')
 
-        # plt.show()
         plt.xlabel('time', fontsize=15)
         plt.ylabel('temporal_signal', fontsize=15)
         plt.title('temporal signal of patient=' + str(patient) + '_electrode =' + electrode, fontsize=15)
         plt.savefig(path.path_results_temporal_signal + "temporal_signal")
         plt.savefig(path.path_results_temporal_signal + "temporal_signal.svg")
+
+        # Save data of plot
+        data = np.column_stack((time[:final_time * fs], signal[:final_time * fs]))
+        np.save(path.path_results_temporal_signal + 'temporal_signal' + '.npy', data)
 
     else:
         raise ValueError(f"{electrode} isn't in channel_names_list of patient_{patient}")
@@ -245,9 +123,7 @@ class SynchronousAvg:
             end_sample = int(self.onset_1[i] + self.step) * self.fs
             trial_q[i, :] = signal[start_sample:end_sample]
         synch_avg_q = np.mean(trial_q, axis=0)
-        ci = self.calculate_confidence_interval(trial_q, 0.95)
-        ci_l_q = synch_avg_q - ci
-        ci_h_q = synch_avg_q + ci
+        ci_q = self.calculate_confidence_interval(trial_q, 0.95)
 
         trial_a = np.zeros((len(self.onset_0), self.time.shape[0]))
         for i in range(len(self.onset_0)):
@@ -255,11 +131,9 @@ class SynchronousAvg:
             end_sample = int(self.onset_0[i] + self.step) * self.fs
             trial_a[i, :] = signal[start_sample:end_sample]
         synch_avg_a = np.mean(trial_a, axis=0)
-        ci = self.calculate_confidence_interval(trial_a, 0.95)
-        ci_l_a = synch_avg_a - ci
-        ci_h_a = synch_avg_a + ci
+        ci_a = self.calculate_confidence_interval(trial_a, 0.95)
 
-        return ci_l_q, ci_h_q, ci_l_a, ci_h_a, synch_avg_q, synch_avg_a
+        return ci_q, ci_a, synch_avg_q, synch_avg_a
 
     def calculate_synchronous_avg(self, num_patient):
         for patient in range(num_patient):
@@ -268,7 +142,11 @@ class SynchronousAvg:
                 num_electrode = self.channel_names_list[patient].index(electrode)
                 signal = self.band_all_patient[patient][self.freq_band][:, num_electrode]
 
-                ci_l_q, ci_h_q, ci_l_a, ci_h_a, synch_avg_q, synch_avg_a = self.synch_ci(signal)
+                ci_q, ci_a, synch_avg_q, synch_avg_a = self.synch_ci(signal)
+                ci_l_q = synch_avg_q - ci_q
+                ci_h_q = synch_avg_q + ci_q
+                ci_l_a = synch_avg_a - ci_a
+                ci_h_a = synch_avg_a + ci_a
 
                 plt.figure(dpi=300)
                 if self.task == 'question&answer':
@@ -289,6 +167,11 @@ class SynchronousAvg:
                     self.path.path_results_synchronous_average[patient] + 'p_' + str(
                         patient) + '_elec_' + electrode + '.svg')
 
+                # Save data of plot
+                data = np.column_stack((self.time, synch_avg_a, synch_avg_q, ci_a, ci_q))
+                np.save(self.path.path_results_synchronous_average[patient] + 'p_' + str(patient) + '_elec_' + electrode
+                        + '.npy', data)
+
     def calculate_synch_avg_common_electrode(self, common_electrodes):
         for key in common_electrodes:
             j = 0
@@ -302,7 +185,11 @@ class SynchronousAvg:
                 if key in electrodes:
                     num_electrode = self.channel_names_list[patient].index(key)
                     signal = self.band_all_patient[patient][self.freq_band][:, num_electrode]
-                    ci_l_q, ci_h_q, ci_l_a, ci_h_a, synch_avg_q, synch_avg_a = self.synch_ci(signal)
+                    ci_q, ci_a, synch_avg_q, synch_avg_a = self.synch_ci(signal)
+                    ci_l_q = synch_avg_q - ci_q
+                    ci_h_q = synch_avg_q + ci_q
+                    ci_l_a = synch_avg_a - ci_a
+                    ci_h_a = synch_avg_a + ci_a
                     plt.plot(self.time, synch_avg_q + j, color='blue', linewidth=2)
                     plt.fill_between(self.time, ci_l_q + j, ci_h_q + j, color='blue', alpha=0.2)
                     plt.plot(self.time, synch_avg_a + j, color='red', linewidth=2)
@@ -383,3 +270,5 @@ def plot_wavelet(path, raw_car_all, settings):
     plt.ylabel('frequency')
     fig.savefig(path.path_results_wavelet + 'wavelet_patient' + str(patient) + '_electrode' + electrode)
     fig.savefig(path.path_results_wavelet + 'wavelet_patient' + str(patient) + '_electrode' + electrode + '.svg')
+
+

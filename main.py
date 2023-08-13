@@ -2,6 +2,7 @@ from utils import *
 from visualiztion_utils import *
 from model import *
 from import_data import *
+from feature_extraction import *
 
 # set device
 device = 'system_lab'
@@ -26,7 +27,8 @@ else:
 settings = {
     'band': 'gamma',  # Specify frequency band
     'task': 'question&answer',  # task : 'speech&music' , 'question&answer'
-    'generate_electrode_histogram': True,  # Get histogram of electrodes of patients
+    'generate_electrode_histogram': True,
+    # Get histogram of electrodes of patients
     'print_analyze_electrode_histogram': True,
     'fs': 25,  # Sampling frequency
     'final_time': 150,
@@ -40,7 +42,7 @@ settings = {
     # Get the synchronous average between trials for all electrode of each patient
     # Notice that 't_min'+'step' must be integer
     'synchronous_average': False,
-    'parameter_synchronous_average': {'num_patient': 3,
+    'parameter_synchronous_average': {'num_patient': 18,
                                       't_min': 0.5,
                                       'step': 2.5},
     # Plot wavelet of raw data of signal each patient
@@ -48,6 +50,7 @@ settings = {
     'parameter_wavelet': {'patient': 2,
                           'electrode': 'T13'},
     # Get feature and visualize features for all electrode of each patient
+    # feature 'Sample_entropy' must be False for task:'speech&music'
     'get_feature': True,
     'feature_list': {'AVG': True, 'RMS': True, 'Max_peak': True, 'Variance': True, 'Coastline': True,
                      'Band_powers': True, 'Spectral_edge_frequency': True, 'Skewness': True, 'Kurtosis': True,
@@ -59,7 +62,7 @@ settings = {
     # for task:'speech&music', step=29.5 , for task:'question&answer', step=2.5
     # for task:'speech&music', window_size=200 , for task:'question&answer', window_size=20
     # Notice that 't_min'+'step' must be integer
-    'parameter_get_feature': {'num_patient_get_feature': 47,
+    'parameter_get_feature': {'num_patient_get_feature': 3,
                               'num_patient_plot_class_conditional_average': 2,
                               'window_size': 20,
                               't_min': 0.5,
@@ -71,16 +74,20 @@ settings = {
     # Specify type_balancing :  'over_sampling' or 'under_sampling'  or 'over&down_sampling' or 'weighted_losfunc'
     # Notice that for classification Naive_bayes don't use 'weighted_losfunc' way for balancing
     'classification': True,
-    'list_type_balancing': {'over_sampling': True,
-                            'under_sampling': False,
+    'list_type_balancing': {'Without_balancing': False,
+                            'over_sampling': False,
+                            'under_sampling': True,
                             'over&down_sampling': False},
     'list_type_classification': {'Logistic_regression': False,
                                  'SVM': True,
                                  'Naive_bayes': False},
-    'parameter_classification': {'num_patient': 47},
+    'list_ensemble_method': {'Max_voting': True,
+                             'Stacking_ensemble': True},
+
+    'parameter_classification': {'num_patient': 3},
     # Get Principal Component Analysis
-    'get_pca': True,
-    'parameter_get_pca': {'num_patient': 10}
+    'get_pca': False,
+    'parameter_get_pca': {'num_patient': 15}
 }
 
 load_data_settings = {
@@ -155,18 +162,18 @@ if settings['wavelet']:
 
 " ------------------------------------------------- Feature extraction ---------------------------------------------"
 if settings['get_feature']:
-    class_viz = QAVisualizer(channel_names=channel_names_list,
+    feature_ex = FeatureExtractor(channel_names=channel_names_list,
                              onset_1=onset_1,
                              onset_0=onset_0,
                              path=paths,
                              settings=settings)
-    class_viz.get_feature_all(data_with_hilbert=band_all_patient_with_hilbert,
+    feature_ex.get_feature_all(data_with_hilbert=band_all_patient_with_hilbert,
                               data_without_hilbert=band_all_patient_without_hilbert)
 
-    feature_all_matrix = class_viz.create_feature_matrix()
+    feature_all_matrix = feature_ex.create_feature_matrix()
 
     if settings['plot_class_conditional_average'] and settings['load_feature_matrix'] is False:
-        class_viz.plot_class_conditional_average()
+        feature_ex.plot_class_conditional_average()
 
 " ------------------------------------------------- Classification ---------------------------------------------"
 

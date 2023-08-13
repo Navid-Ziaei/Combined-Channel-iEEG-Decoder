@@ -183,15 +183,19 @@ class Paths:
 
             for type_classification in settings['list_type_classification'].keys():
                 for type_balancing in settings['list_type_balancing'].keys():
-                    if settings['list_type_classification'][type_classification] \
-                            & settings['list_type_balancing'][type_balancing]:
-                        self.path_results_classifier[type_classification + type_balancing] = \
-                            self.path_results_classification + '/' + type_classification + '_' + type_balancing + '/'
-                        Path(self.path_results_classifier[type_classification + type_balancing]).mkdir(parents=True,
-                                                                                                       exist_ok=True)
+                    for type_ensemble in settings['list_ensemble_method'].keys():
+                        if settings['list_type_classification'][type_classification] \
+                                & settings['list_type_balancing'][type_balancing] \
+                                & settings['list_ensemble_method'][type_ensemble]:
+                            self.path_results_classifier[type_classification + type_balancing + type_ensemble] = \
+                                self.path_results_classification + '/' + type_classification + '_' + type_balancing +'/' + type_ensemble + '/'
+                            Path(self.path_results_classifier[type_classification + type_balancing + type_ensemble])\
+                                .mkdir(parents=True,exist_ok=True)
+                            self.path_results_ensemble_classifier[type_classification + type_balancing + type_ensemble] = \
+                                self.path_results_classifier[type_classification + type_balancing + type_ensemble] + '/ensemble_classifier/'
+                            Path(self.path_results_ensemble_classifier[type_classification + type_balancing + type_ensemble])\
+                                .mkdir(parents=True, exist_ok=True)
 
-            self.path_results_ensemble_classifier = self.path_results_classification + '/ensemble_classifier/'
-            Path(self.path_results_ensemble_classifier).mkdir(parents=True, exist_ok=True)
 
         if settings['get_pca']:
             path_results_pca = self.path_results + '/PCA/'

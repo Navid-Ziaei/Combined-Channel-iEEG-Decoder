@@ -4,9 +4,11 @@ import pandas as pd
 import os
 import numpy as np
 from collections import OrderedDict
-from cls import resample, smooth_signal, zscore
 import warnings
 import pickle as pkl
+import re
+from fractions import Fraction
+from scipy.signal import resample_poly
 
 
 class SubjectDataset(object):
@@ -87,6 +89,26 @@ class SubjectDataset(object):
             (self.channels['type'].isin(['ECOG', 'SEEG'])) & (self.channels['status'] == 'bad')].tolist()
         self.all_electrodes = self.channels['name'][(self.channels['type'].isin(['ECOG', 'SEEG']))].tolist()
         print('Getting bad electrodes done')
+
+    def sort_nicely(self, l):
+        """ Sort the given list in the way that humans expect.
+        """
+        convert = lambda text: int(text) if text.isdigit() else text
+        alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
+        l.sort(key=alphanum_key)
+
+    def resample(self, x, sr1, sr2, axis=0):
+        '''sr1: target, sr2: source'''
+        a, b = Fraction(sr1, sr2)._numerator, Fraction(sr1, sr2)._denominator
+        return resample_poly(x, a, b, axis).astype(np.float32)
+
+    def smooth_signal(self, y, n):
+        box = np.ones(n) / n
+        ys = np.convolve(y, box, mode='same')
+        return ys
+
+    def zscore(self,x):
+        return (x - np.mean(x, 0, keepdims=True)) / np.std(x, 0, keepdims=True)
 
     def preprocess(self):
         raw_dbe = self._discard_bad_electrodes()
@@ -187,20 +209,20 @@ class SubjectDataset(object):
         if self.bands1 is not None:
             self.bands3 = OrderedDict.fromkeys(self.bands1.keys())
             for key in self.bands1.keys():
-                self.bands3[key] = resample(self.bands2[key], 25, int(self.raw.info['sfreq']))
+                self.bands3[key] = self.resample(self.bands2[key], 25, int(self.raw.info['sfreq']))
         return self.bands3
 
     def _smooth_band_envelopes(self):
         if self.bands1 is not None:
             for key in self.bands1.keys():
-                self.bands[key] = np.apply_along_axis(smooth_signal, 0, self.bands[key], 5)
+                self.bands[key] = np.apply_along_axis(self.smooth_signal, 0, self.bands[key], 5)
 
     def _compute_block_means_per_band(self):
         if self.bands1 is not None:
             self.band_block_means = OrderedDict.fromkeys(self.bands1.keys())
             band6 = OrderedDict.fromkeys(self.bands1.keys())
             for key in self.bands1.keys():
-                band6[key] = zscore(self.bands3[key][:self.expected_duration * 25])
+                band6[key] = self.zscore(self.bands3[key][:self.expected_duration * 25])
                 band7 = band6[key].reshape((-1, 750, band6[key].shape[-1]))  # 13 blocks in chill or 6 in rest
                 self.band_block_means[key] = np.mean(band7, 1)
         return band6, band7, self.band_block_means

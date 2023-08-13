@@ -12,6 +12,8 @@ import matplotlib.pyplot as plt
 import csv
 from collections import Counter
 from sklearn.model_selection import train_test_split
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 
 
 class ModelSinglePatient:
@@ -26,23 +28,29 @@ class ModelSinglePatient:
     def create_model(self):
         list_type_balancing = self.settings['list_type_balancing'].keys()
         list_type_classification = self.settings['list_type_classification'].keys()
+        list_ensemble_method = self.settings['list_ensemble_method'].keys()
 
         for type_balancing in list_type_balancing:
             for type_classification in list_type_classification:
-                if self.settings['list_type_classification'][type_classification] & \
-                        self.settings['list_type_balancing'][type_balancing]:
-                    print("\n =================================== \n"
-                          f"\n classifier:{type_classification} , balancing:{type_balancing} is running ...")
-                    f_measure_all, precision_all, recall_all, f_measure_all_ensemble = self.classifier(
-                        type_classification=type_classification,
-                        type_balancing=type_balancing)
-                    self.save_plot_result(ch_name_list=self.channel_names_list,
-                                          f_measure_all=f_measure_all,
-                                          precision_all=precision_all,
-                                          recall_all=recall_all,
-                                          f_measure_all_ensemble=f_measure_all_ensemble,
-                                          type_classification=type_classification,
-                                          type_balancing=type_balancing)
+                for type_ensemble in list_ensemble_method:
+                    if self.settings['list_type_classification'][type_classification] & \
+                            self.settings['list_type_balancing'][type_balancing] & \
+                            self.settings['list_ensemble_method'][type_ensemble]:
+                        print("\n =================================== \n"
+                              f"\n classifier:{type_classification} , balancing:{type_balancing}  , "
+                              f" ensemble_method:{type_ensemble} is running ...")
+                        f_measure_all, precision_all, recall_all, f_measure_all_ensemble = self.classifier(
+                            type_classification=type_classification,
+                            type_balancing=type_balancing,
+                            type_ensemble=type_ensemble)
+                        self.save_plot_result(ch_name_list=self.channel_names_list,
+                                              f_measure_all=f_measure_all,
+                                              precision_all=precision_all,
+                                              recall_all=recall_all,
+                                              f_measure_all_ensemble=f_measure_all_ensemble,
+                                              type_classification=type_classification,
+                                              type_balancing=type_balancing,
+                                              type_ensemble=type_ensemble)
 
     def normalize(self, x):
         scaler = MinMaxScaler()
@@ -72,20 +80,35 @@ class ModelSinglePatient:
 
         return x, y
 
-    def combine_classifier(self, y_pre_matrix, y_validation_all_fold, f_measure, num_classifier_ensemble):
+    def balance_learn_model(self, x_train, y_train, type_balancing, type_classification):
+        if self.settings['task'] == 'question&answer':
+            x_train, y_train = self.resample_data(x_train, y_train,
+                                                  type_balancing)
+
+        if type_classification == 'Logistic_regression':
+            cls = LogisticRegression().fit(x_train, y_train)
+        if type_classification == 'SVM':
+            cls = SVC().fit(x_train, y_train)
+        if type_classification == 'Naive_bayes':
+            cls = GaussianNB().fit(x_train, y_train)
+
+        return cls
+
+    def Max_voting(self, y_pre_matrix, y_validation_all_fold, f_measure_test, num_classifier_ensemble):
         f_measure_ensemble = np.zeros((5, num_classifier_ensemble))
 
         for fold_num in range(y_pre_matrix.shape[1]):
-            f_measure_sort = sorted(np.unique(f_measure[:, fold_num]), reverse=True)
+            f_measure_sort = sorted(np.unique(f_measure_test[:, fold_num]), reverse=True)
             pos_classifier = []
             for k in range(len(f_measure_sort)):
-                pos = np.where(f_measure[:, fold_num] == f_measure_sort[k])
+                pos = np.where(f_measure_test[:, fold_num] == f_measure_sort[k])
                 pos_classifier = pos_classifier + [int(x) for x in pos[0]]
 
             for i in range(num_classifier_ensemble):
                 y_pre_voting = []
                 for j in range(i + 1):
-                    y_pre_voting.append(y_pre_matrix[pos_classifier[j], fold_num, :len(y_validation_all_fold[fold_num])])
+                    y_pre_voting.append(
+                        y_pre_matrix[pos_classifier[j], fold_num, :len(y_validation_all_fold[fold_num])])
 
                 y_pre_ensemble = []
                 for trial_num in range(len(y_pre_voting[0])):
@@ -101,7 +124,33 @@ class ModelSinglePatient:
 
         return f_measure_ensemble
 
-    def classifier(self, type_classification, type_balancing):
+    def stacking_ensemble(self, y_pre_matrix_fold, y_pre_matrix, data_all_fold, f_measure, num_classifier_ensemble):
+        f_measure_all_fold = np.zeros((5, num_classifier_ensemble))
+        for fold_num in range(y_pre_matrix.shape[1]):
+            f_measure_sort = sorted(np.unique(f_measure[:, fold_num]), reverse=True)
+            pos_classifier = []
+            for k in range(len(f_measure_sort)):
+                pos = np.where(f_measure[:, fold_num] == f_measure_sort[k])
+                pos_classifier = pos_classifier + [int(x) for x in pos[0]]
+
+            for i in range(num_classifier_ensemble):
+                y_pre_stacking = np.zeros((y_pre_matrix_fold.shape[2], num_classifier_ensemble))
+                y_pre_matrix_stacking = np.zeros((y_pre_matrix.shape[2], num_classifier_ensemble))
+                for j in range(i + 1):
+                    y_pre_stacking[:, j] = y_pre_matrix_fold[pos_classifier[j], fold_num, :]
+                    y_pre_matrix_stacking[:, j] = y_pre_matrix[pos_classifier[j], fold_num, :]
+
+                cls = LogisticRegression(solver='liblinear', penalty='l1', class_weight='balanced').fit(
+                    y_pre_stacking[:len(data_all_fold['y_test_fold'][fold_num]), :],
+                    data_all_fold['y_test_fold'][fold_num])
+                y_pre = cls.predict(y_pre_matrix_stacking[:len(data_all_fold['y_validation'][fold_num]), :])
+                out = precision_recall_fscore_support(data_all_fold['y_validation'][fold_num], y_pre,
+                                                      average='weighted', zero_division=0)
+                f_measure_all_fold[fold_num, i] = out[2]
+
+        return f_measure_all_fold
+
+    def classifier(self, type_classification, type_balancing, type_ensemble):
         # question_label=1  answer_label=0
         if self.settings['task'] == 'question&answer':
             label = np.zeros(67)
@@ -112,56 +161,67 @@ class ModelSinglePatient:
         f_measure_all = []
         precision_all = []
         recall_all = []
-        num_classifier_ensemble = 30
+        num_classifier_ensemble = 40
         f_measure_all_ensemble = np.zeros((self.num_patient, 5, num_classifier_ensemble))
         for patient in range(self.num_patient):
             print(f'\n patient_{patient} from {self.num_patient}')
             feature = self.feature_matrix[patient]
             f_measure = np.zeros((self.feature_matrix[patient].shape[0], 5))
+            f_measure_test = np.zeros((self.feature_matrix[patient].shape[0], 5))
             precision = np.zeros((self.feature_matrix[patient].shape[0], 5))
             recall = np.zeros((self.feature_matrix[patient].shape[0], 5))
-            y_pre_matrix = np.zeros((self.feature_matrix[patient].shape[0], 5, 14))
+            if type_ensemble == 'Stacking_ensemble':
+                y_pre_matrix_fold = np.zeros((self.feature_matrix[patient].shape[0], 5, int(0.16 * len(label)) + 1))
+            y_pre_matrix = np.zeros((self.feature_matrix[patient].shape[0], 5, int(0.2 * len(label)) + 1))
             for electrode in range(self.feature_matrix[patient].shape[0]):
                 x = feature[electrode, :, :]
                 x_norm = self.normalize(x)
-                y_validation_all_fold = []
+                # x_norm = PCA(n_components=10).fit_transform(x_norm)
+                # x_norm = TSNE(n_components=2).fit_transform(x_norm)
+                data_all_fold = {'y_validation': [], 'y_test_fold': []}
                 kf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
                 for i, (train_index, test_index) in enumerate(kf.split(x_norm, label)):
                     x_train, x_validation = x_norm[train_index], x_norm[test_index]
                     y_train, y_validation = label[train_index], label[test_index]
-                    y_validation_all_fold.append(y_validation)
+                    data_all_fold['y_validation'].append(y_validation)
                     x_train_fold, x_test_fold, y_train_fold, y_test_fold = train_test_split(x_train,
                                                                                             y_train,
                                                                                             test_size=0.2,
                                                                                             random_state=42)
-                    if self.settings['task'] == 'question&answer':
-                        x_train_fold_balance, y_train_fold_balance = self.resample_data(x_train_fold, y_train_fold,
-                                                                                        type_balancing)
-
-                    if type_classification == 'Logistic_regression':
-                        cls = LogisticRegression().fit(x_train_fold_balance, y_train_fold_balance)
-                    if type_classification == 'SVM':
-                        cls = SVC().fit(x_train_fold_balance, y_train_fold_balance)
-                    if type_classification == 'Naive_bayes':
-                        cls = GaussianNB().fit(x_train_fold_balance, y_train_fold_balance)
+                    data_all_fold['y_test_fold'].append(y_test_fold)
+                    cls = self.balance_learn_model(x_train_fold, y_train_fold, type_balancing, type_classification)
 
                     y_pre_fold = cls.predict(x_test_fold)
-                    out = precision_recall_fscore_support(y_test_fold, y_pre_fold, average='weighted', zero_division=0)
-                    precision[electrode, i] = out[0]
-                    recall[electrode, i] = out[1]
-                    f_measure[electrode, i] = out[2]
+                    if type_ensemble == 'Stacking_ensemble':
+                        y_pre_matrix_fold[electrode, i, :len(y_pre_fold)] = y_pre_fold
+                    out_test = precision_recall_fscore_support(y_test_fold, y_pre_fold, average='weighted',
+                                                               zero_division=0)
+                    f_measure_test[electrode, i] = out_test[2]
                     y_pre = cls.predict(x_validation)
                     y_pre_matrix[electrode, i, :len(y_pre)] = y_pre
-            f_measure_all_ensemble[patient, :, :] = self.combine_classifier(y_pre_matrix, y_validation_all_fold,
-                                                                            f_measure, num_classifier_ensemble)
+                    out_val = precision_recall_fscore_support(y_validation, y_pre, average='weighted', zero_division=0)
+                    precision[electrode, i] = out_val[0]
+                    recall[electrode, i] = out_val[1]
+                    f_measure[electrode, i] = out_val[2]
+            if type_ensemble == 'Max_voting':
+                f_measure_all_ensemble[patient, :, :] = self.Max_voting(y_pre_matrix,
+                                                                        data_all_fold['y_validation'],
+                                                                        f_measure_test,
+                                                                        num_classifier_ensemble)
+            if type_ensemble == 'Stacking_ensemble':
+                f_measure_all_ensemble[patient, :, :] = self.stacking_ensemble(y_pre_matrix_fold,
+                                                                               y_pre_matrix,
+                                                                               data_all_fold,
+                                                                               f_measure_test,
+                                                                               num_classifier_ensemble)
+
             f_measure_all.append(f_measure)
             precision_all.append(precision)
             recall_all.append(recall)
         return f_measure_all, precision_all, recall_all, f_measure_all_ensemble
 
     def save_plot_result(self, ch_name_list, f_measure_all, precision_all, recall_all, f_measure_all_ensemble,
-                         type_classification,
-                         type_balancing):
+                         type_classification, type_balancing, type_ensemble):
         max_performance_all = []
         for patient in range(self.num_patient):
             max_performance = {'max_f_measure': 0, 'best_electrode': 0}
@@ -179,7 +239,7 @@ class ModelSinglePatient:
             # write csv file for each patient for each classifier
             header = ['num_channel', 'channel', '', 'f_measure', '', 'precision', '', 'recall']
             ch_name = ch_name_list[patient]
-            with open(self.path.path_results_classifier[type_classification + type_balancing] +
+            with open(self.path.path_results_classifier[type_classification + type_balancing + type_ensemble] +
                       'patient_' + str(patient) + '.csv', 'w', newline='') as f:
                 writer = csv.writer(f)
                 # write the header
@@ -197,25 +257,17 @@ class ModelSinglePatient:
                              alpha=0.2)
             plt.title('patient=' + str(patient), fontsize=15)
             plt.ylabel('f_measure')
-            plt.xlabel('channel')
-            plt.savefig(self.path.path_results_classifier[type_classification + type_balancing] +
+            plt.xlabel('channel_id')
+            plt.savefig(self.path.path_results_classifier[type_classification + type_balancing + type_ensemble] +
                         'patient_' + str(patient))
-            plt.savefig(self.path.path_results_classifier[type_classification + type_balancing] +
-                        'patient_' + str(patient)+'.svg')
+            plt.savefig(self.path.path_results_classifier[type_classification + type_balancing + type_ensemble] +
+                        'patient_' + str(patient) + '.svg')
 
-        # write csv file for max performance all patient for each classifier
-        header = ['num_patient', '', 'num_best_channel', '', 'best_channel', '', 'max_f_measure', '',
-                  'f_measure_ensemble']
-        with open(self.path.path_results_classification + 'max_performance__' + type_classification + '_' +
-                  type_balancing + '.csv', 'w', newline='') as f:
-            writer = csv.writer(f)
-            # write the header
-            writer.writerow(header)
-            for patient in range(self.num_patient):
-                writer.writerow([patient, ' ', max_performance_all[patient]['num_best_electrode'], ' ',
-                                 max_performance_all[patient]['best_electrode'], ' ',
-                                 max_performance_all[patient]['max_f_measure'], ' ',
-                                 f_measure_all_ensemble[patient]])
+            # Save data of plot
+            data = np.column_stack((channel_index, f_measure_mean, f_measure_var))
+            np.save(self.path.path_results_classifier[
+                        type_classification + type_balancing + type_ensemble] + 'patient_' + str(patient)
+                    + '.npy', data)
 
         # plot max performance all patient
         plt.figure(dpi=300)
@@ -223,11 +275,19 @@ class ModelSinglePatient:
         for patient in range(self.num_patient):
             max_performance_each_patient.append(max_performance_all[patient]['max_f_measure'])
         plt.plot(np.arange(0, self.num_patient), max_performance_each_patient, color='blue', linewidth=2)
-        plt.title('max_performance_all')
+        plt.title('max performance of patients across channels')
         plt.ylabel('f_measure')
-        plt.xlabel('num_patient')
-        plt.savefig(self.path.path_results_classification + 'max_performance_all')
-        plt.savefig(self.path.path_results_classification + 'max_performance_all.svg')
+        plt.xlabel('patient_id')
+        plt.savefig(self.path.path_results_classifier[
+                        type_classification + type_balancing + type_ensemble] + 'max_performance_all')
+        plt.savefig(self.path.path_results_classifier[
+                        type_classification + type_balancing + type_ensemble] + 'max_performance_all.svg')
+
+        # Save data of plot
+        data = np.column_stack((np.arange(0, self.num_patient), max_performance_each_patient))
+        np.save(self.path.path_results_classifier[
+                    type_classification + type_balancing + type_ensemble] + 'max_performance_all' + '.npy'
+                , data)
 
         # plot f_measure_ensemble for all patient
         f_measure_all_ensemble_mean = np.mean(f_measure_all_ensemble, axis=1)
@@ -242,14 +302,49 @@ class ModelSinglePatient:
                              alpha=0.2)
             plt.title('f_measure of combining classifier_patient_' + str(patient), fontsize=15)
             plt.ylabel('f_measure')
-            plt.xlabel('number of classifier')
-            plt.savefig(self.path.path_results_ensemble_classifier + 'patient_' + str(patient))
-            plt.savefig(self.path.path_results_ensemble_classifier + 'patient_' + str(patient)+'.svg')
+            plt.xlabel('size of channel set')
+            plt.savefig(
+                self.path.path_results_ensemble_classifier[
+                    type_classification + type_balancing + type_ensemble] + 'patient_' + str(
+                    patient))
+            plt.savefig(
+                self.path.path_results_ensemble_classifier[
+                    type_classification + type_balancing + type_ensemble] + 'patient_' + str(
+                    patient) + '.svg')
+
+            # Save data of plot
+            data = np.column_stack((f_measure_all_ensemble_mean[patient, :], f_measure_all_ensemble_std[patient, :]))
+            np.save(self.path.path_results_ensemble_classifier[
+                        type_classification + type_balancing + type_ensemble] + 'patient_' +
+                    str(patient) + '.npy', data)
 
         plt.figure(dpi=300)
         plt.plot(np.max(f_measure_all_ensemble_mean, axis=1), color='red', linewidth=2)
-        plt.title('max f_measure of combining classifier')
+        plt.title('max f_measure of combining classifier across different channel set')
         plt.ylabel('f_measure')
-        plt.xlabel('num_patient')
-        plt.savefig(self.path.path_results_classification + 'f_measure_all_ensemble')
-        plt.savefig(self.path.path_results_classification + 'f_measure_all_ensemble.svg')
+        plt.xlabel('patient_id')
+        plt.savefig(self.path.path_results_classifier[
+                        type_classification + type_balancing + type_ensemble] + 'f_measure_all_ensemble')
+        plt.savefig(self.path.path_results_classifier[
+                        type_classification + type_balancing + type_ensemble] + 'f_measure_all_ensemble'
+                                                                                '.svg')
+
+        # Save data of plot
+        np.save(self.path.path_results_classifier[
+                    type_classification + type_balancing + type_ensemble] + 'f_measure_all_ensemble' +
+                '.npy', np.max(f_measure_all_ensemble_mean, axis=1))
+
+        # write csv file for max performance all patient for each classifier
+        header = ['num_patient', '', 'num_best_channel', '', 'best_channel', '', 'max_f_measure', '',
+                  'f_measure_ensemble']
+        with open(self.path.path_results_classifier[
+                      type_classification + type_balancing + type_ensemble] + 'max_performance__' + type_classification + '_' +
+                  type_balancing + '.csv', 'w', newline='') as f:
+            writer = csv.writer(f)
+            # write the header
+            writer.writerow(header)
+            for patient in range(self.num_patient):
+                writer.writerow([patient, ' ', max_performance_all[patient]['num_best_electrode'], ' ',
+                                 max_performance_all[patient]['best_electrode'], ' ',
+                                 max_performance_all[patient]['max_f_measure'], ' ',
+                                 np.max(f_measure_all_ensemble_mean[patient])])
