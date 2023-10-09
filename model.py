@@ -82,7 +82,7 @@ class ModelSinglePatient:
 
     def balance_learn_model(self, x_train, y_train, type_balancing, type_classification):
         if self.settings['list_type_balancing']['Without_balancing'] is False:
-            x_train, y_train = self.resample_data(x_train, y_train,type_balancing)
+            x_train, y_train = self.resample_data(x_train, y_train, type_balancing)
 
         if type_classification == 'Logistic_regression':
             cls = LogisticRegression().fit(x_train, y_train)
@@ -177,7 +177,11 @@ class ModelSinglePatient:
                 y_pre_matrix_fold = np.zeros((self.feature_matrix[patient].shape[0], 5, int(0.16 * len(label)) + 1))
             y_pre_matrix = np.zeros((self.feature_matrix[patient].shape[0], 5, int(0.2 * len(label)) + 1))
             for electrode in range(self.feature_matrix[patient].shape[0]):
-                x = feature[electrode, :30, :]
+                if self.settings['task_Q&A']['balance']:
+                    start_sample = self.settings['task_Q&A']['start_sample']
+                    x = np.vstack((feature[electrode, 0:15, :], feature[electrode, start_sample+15:start_sample + 30, :]))
+                else:
+                    x = feature[electrode, :, :]
                 x_norm = self.normalize(x)
                 # x_norm = PCA(n_components=10).fit_transform(x_norm)
                 # x_norm = TSNE(n_components=2).fit_transform(x_norm)
@@ -197,7 +201,8 @@ class ModelSinglePatient:
                     y_pre_fold = cls.predict(x_val_fold)
                     if type_ensemble == 'Stacking_ensemble':
                         y_pre_matrix_fold[electrode, i, :len(y_pre_fold)] = y_pre_fold
-                    out_val = precision_recall_fscore_support(y_val_fold, y_pre_fold, average='weighted',zero_division=0)
+                    out_val = precision_recall_fscore_support(y_val_fold, y_pre_fold, average='weighted',
+                                                              zero_division=0)
                     f_measure_val[electrode, i] = out_val[2]
                     y_pre = cls.predict(x_test)
                     y_pre_matrix[electrode, i, :len(y_pre)] = y_pre
