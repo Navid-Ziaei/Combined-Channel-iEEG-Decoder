@@ -81,9 +81,8 @@ class ModelSinglePatient:
         return x, y
 
     def balance_learn_model(self, x_train, y_train, type_balancing, type_classification):
-        if self.settings['task'] == 'question&answer':
-            x_train, y_train = self.resample_data(x_train, y_train,
-                                                  type_balancing)
+        if self.settings['list_type_balancing']['Without_balancing'] is False:
+            x_train, y_train = self.resample_data(x_train, y_train,type_balancing)
 
         if type_classification == 'Logistic_regression':
             cls = LogisticRegression().fit(x_train, y_train)
@@ -94,21 +93,21 @@ class ModelSinglePatient:
 
         return cls
 
-    def Max_voting(self, y_pre_matrix, y_validation_all_fold, f_measure_test, num_classifier_ensemble):
+    def Max_voting(self, y_pre_matrix, y_test_all_fold, f_measure_val, num_classifier_ensemble):
         f_measure_ensemble = np.zeros((5, num_classifier_ensemble))
 
         for fold_num in range(y_pre_matrix.shape[1]):
-            f_measure_sort = sorted(np.unique(f_measure_test[:, fold_num]), reverse=True)
+            f_measure_sort = sorted(np.unique(f_measure_val[:, fold_num]), reverse=True)
             pos_classifier = []
             for k in range(len(f_measure_sort)):
-                pos = np.where(f_measure_test[:, fold_num] == f_measure_sort[k])
+                pos = np.where(f_measure_val[:, fold_num] == f_measure_sort[k])
                 pos_classifier = pos_classifier + [int(x) for x in pos[0]]
 
             for i in range(num_classifier_ensemble):
                 y_pre_voting = []
                 for j in range(i + 1):
                     y_pre_voting.append(
-                        y_pre_matrix[pos_classifier[j], fold_num, :len(y_validation_all_fold[fold_num])])
+                        y_pre_matrix[pos_classifier[j], fold_num, :len(y_test_all_fold[fold_num])])
 
                 y_pre_ensemble = []
                 for trial_num in range(len(y_pre_voting[0])):
@@ -117,7 +116,7 @@ class ModelSinglePatient:
                         y_pre_one_trial.append(y_pre_voting[classifier_num][trial_num])
                     majority_label, _ = Counter(y_pre_one_trial).most_common()[0]
                     y_pre_ensemble.append(majority_label)
-                out = precision_recall_fscore_support(y_validation_all_fold[fold_num], y_pre_ensemble,
+                out = precision_recall_fscore_support(y_test_all_fold[fold_num], y_pre_ensemble,
                                                       average='weighted',
                                                       zero_division=0)
                 f_measure_ensemble[fold_num, i] = out[2]
@@ -141,10 +140,10 @@ class ModelSinglePatient:
                     y_pre_matrix_stacking[:, j] = y_pre_matrix[pos_classifier[j], fold_num, :]
 
                 cls = LogisticRegression(solver='liblinear', penalty='l1', class_weight='balanced').fit(
-                    y_pre_stacking[:len(data_all_fold['y_test_fold'][fold_num]), :],
-                    data_all_fold['y_test_fold'][fold_num])
-                y_pre = cls.predict(y_pre_matrix_stacking[:len(data_all_fold['y_validation'][fold_num]), :])
-                out = precision_recall_fscore_support(data_all_fold['y_validation'][fold_num], y_pre,
+                    y_pre_stacking[:len(data_all_fold['y_val_fold'][fold_num]), :],
+                    data_all_fold['y_val_fold'][fold_num])
+                y_pre = cls.predict(y_pre_matrix_stacking[:len(data_all_fold['y_test'][fold_num]), :])
+                out = precision_recall_fscore_support(data_all_fold['y_test'][fold_num], y_pre,
                                                       average='weighted', zero_division=0)
                 f_measure_all_fold[fold_num, i] = out[2]
 
@@ -153,11 +152,15 @@ class ModelSinglePatient:
     def classifier(self, type_classification, type_balancing, type_ensemble):
         # question_label=1  answer_label=0
         if self.settings['task'] == 'question&answer':
-            label = np.zeros(67)
-            label[0:15] = 1
+            if self.settings['task_Q&A']['balance']:
+                label = np.zeros(30)
+                label[0:15] = 1
+            else:
+                label = np.zeros(67)
+                label[0:15] = 1
         if self.settings['task'] == 'speech&music':
             label = np.zeros(13)
-            label[0:6] = 1
+            label[0:7] = 1
         f_measure_all = []
         precision_all = []
         recall_all = []
@@ -167,52 +170,51 @@ class ModelSinglePatient:
             print(f'\n patient_{patient} from {self.num_patient}')
             feature = self.feature_matrix[patient]
             f_measure = np.zeros((self.feature_matrix[patient].shape[0], 5))
-            f_measure_test = np.zeros((self.feature_matrix[patient].shape[0], 5))
+            f_measure_val = np.zeros((self.feature_matrix[patient].shape[0], 5))
             precision = np.zeros((self.feature_matrix[patient].shape[0], 5))
             recall = np.zeros((self.feature_matrix[patient].shape[0], 5))
             if type_ensemble == 'Stacking_ensemble':
                 y_pre_matrix_fold = np.zeros((self.feature_matrix[patient].shape[0], 5, int(0.16 * len(label)) + 1))
             y_pre_matrix = np.zeros((self.feature_matrix[patient].shape[0], 5, int(0.2 * len(label)) + 1))
             for electrode in range(self.feature_matrix[patient].shape[0]):
-                x = feature[electrode, :, :]
+                x = feature[electrode, :30, :]
                 x_norm = self.normalize(x)
                 # x_norm = PCA(n_components=10).fit_transform(x_norm)
                 # x_norm = TSNE(n_components=2).fit_transform(x_norm)
-                data_all_fold = {'y_validation': [], 'y_test_fold': []}
+                data_all_fold = {'y_test': [], 'y_val_fold': []}
                 kf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
                 for i, (train_index, test_index) in enumerate(kf.split(x_norm, label)):
-                    x_train, x_validation = x_norm[train_index], x_norm[test_index]
-                    y_train, y_validation = label[train_index], label[test_index]
-                    data_all_fold['y_validation'].append(y_validation)
-                    x_train_fold, x_test_fold, y_train_fold, y_test_fold = train_test_split(x_train,
-                                                                                            y_train,
-                                                                                            test_size=0.2,
-                                                                                            random_state=42)
-                    data_all_fold['y_test_fold'].append(y_test_fold)
+                    x_train, x_test = x_norm[train_index], x_norm[test_index]
+                    y_train, y_test = label[train_index], label[test_index]
+                    data_all_fold['y_test'].append(y_test)
+                    x_train_fold, x_val_fold, y_train_fold, y_val_fold = train_test_split(x_train,
+                                                                                          y_train,
+                                                                                          test_size=0.2,
+                                                                                          random_state=42)
+                    data_all_fold['y_val_fold'].append(y_val_fold)
                     cls = self.balance_learn_model(x_train_fold, y_train_fold, type_balancing, type_classification)
 
-                    y_pre_fold = cls.predict(x_test_fold)
+                    y_pre_fold = cls.predict(x_val_fold)
                     if type_ensemble == 'Stacking_ensemble':
                         y_pre_matrix_fold[electrode, i, :len(y_pre_fold)] = y_pre_fold
-                    out_test = precision_recall_fscore_support(y_test_fold, y_pre_fold, average='weighted',
-                                                               zero_division=0)
-                    f_measure_test[electrode, i] = out_test[2]
-                    y_pre = cls.predict(x_validation)
+                    out_val = precision_recall_fscore_support(y_val_fold, y_pre_fold, average='weighted',zero_division=0)
+                    f_measure_val[electrode, i] = out_val[2]
+                    y_pre = cls.predict(x_test)
                     y_pre_matrix[electrode, i, :len(y_pre)] = y_pre
-                    out_val = precision_recall_fscore_support(y_validation, y_pre, average='weighted', zero_division=0)
-                    precision[electrode, i] = out_val[0]
-                    recall[electrode, i] = out_val[1]
-                    f_measure[electrode, i] = out_val[2]
+                    out_test = precision_recall_fscore_support(y_test, y_pre, average='weighted', zero_division=0)
+                    precision[electrode, i] = out_test[0]
+                    recall[electrode, i] = out_test[1]
+                    f_measure[electrode, i] = out_test[2]
             if type_ensemble == 'Max_voting':
                 f_measure_all_ensemble[patient, :, :] = self.Max_voting(y_pre_matrix,
-                                                                        data_all_fold['y_validation'],
-                                                                        f_measure_test,
+                                                                        data_all_fold['y_test'],
+                                                                        f_measure_val,
                                                                         num_classifier_ensemble)
             if type_ensemble == 'Stacking_ensemble':
                 f_measure_all_ensemble[patient, :, :] = self.stacking_ensemble(y_pre_matrix_fold,
                                                                                y_pre_matrix,
                                                                                data_all_fold,
-                                                                               f_measure_test,
+                                                                               f_measure_val,
                                                                                num_classifier_ensemble)
 
             f_measure_all.append(f_measure)
@@ -264,7 +266,7 @@ class ModelSinglePatient:
                         'patient_' + str(patient) + '.svg')
 
             # Save data of plot
-            data = np.column_stack((channel_index, f_measure_mean, f_measure_var))
+            data = np.column_stack((ch_name, f_measure_mean, f_measure_var))
             np.save(self.path.path_results_classifier[
                         type_classification + type_balancing + type_ensemble] + 'patient_' + str(patient)
                     + '.npy', data)
@@ -284,10 +286,9 @@ class ModelSinglePatient:
                         type_classification + type_balancing + type_ensemble] + 'max_performance_all.svg')
 
         # Save data of plot
-        data = np.column_stack((np.arange(0, self.num_patient), max_performance_each_patient))
         np.save(self.path.path_results_classifier[
                     type_classification + type_balancing + type_ensemble] + 'max_performance_all' + '.npy'
-                , data)
+                , max_performance_each_patient)
 
         # plot f_measure_ensemble for all patient
         f_measure_all_ensemble_mean = np.mean(f_measure_all_ensemble, axis=1)

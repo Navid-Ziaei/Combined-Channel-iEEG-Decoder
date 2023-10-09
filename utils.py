@@ -20,32 +20,39 @@ def time_ann(path):
     return onset, offset
 
 
-def read_time(task, t_min, paths):
+def read_time(task, balance, start_sample, t_min, paths):
     if task == 'question&answer':
         onset_1, offset_1 = time_ann(
             path=paths.path_dataset + "/stimuli/annotations/sound/sound_annotation_questions.tsv")
-        onset_0, offset_0 = time_ann(
+        onset_0_all, offset_0_all = time_ann(
             path=paths.path_dataset + "/stimuli/annotations/sound/sound_annotation_sentences.tsv")
 
         # remove onset of question from onset of answer
         onset_1_int = [int(x) for x in onset_1]
         offset_1_int = [int(x) for x in offset_1]
 
-        for i in onset_0:
+        for i in onset_0_all:
             if int(i) in onset_1_int:
-                onset_0.remove(i)
+                onset_0_all.remove(i)
 
-        for i in onset_0:
+        for i in onset_0_all:
             if i in onset_1:
-                onset_0.remove(i)
+                onset_0_all.remove(i)
 
-        for i in offset_0:
+        for i in offset_0_all:
             if int(i) in offset_1_int:
-                offset_0.remove(i)
+                offset_0_all.remove(i)
 
-        for i in offset_0:
+        for i in offset_0_all:
             if i in offset_1:
-                offset_0.remove(i)
+                offset_0_all.remove(i)
+
+        if balance:
+            onset_0 = onset_0_all[start_sample:start_sample + len(onset_1)]
+            offset_0 = offset_0_all[start_sample:start_sample + len(onset_1)]
+        else:
+            onset_0 = onset_0_all
+            offset_0 = offset_0_all
 
     if task == 'speech&music':
         onset_1 = [i for i in np.arange(0, 390, 60)]
@@ -111,6 +118,7 @@ class Paths:
         self.path_results_ensemble_classifier = {}
         self.path_results_get_pca = {}
         self.path_results_wavelet = None
+        self.path_results_bar_plot = None
         self.path_processed_data = ''
         self.path_dataset = ''
         self.path_store_best_model = ''
@@ -188,14 +196,16 @@ class Paths:
                                 & settings['list_type_balancing'][type_balancing] \
                                 & settings['list_ensemble_method'][type_ensemble]:
                             self.path_results_classifier[type_classification + type_balancing + type_ensemble] = \
-                                self.path_results_classification + '/' + type_classification + '_' + type_balancing +'/' + type_ensemble + '/'
-                            Path(self.path_results_classifier[type_classification + type_balancing + type_ensemble])\
-                                .mkdir(parents=True,exist_ok=True)
-                            self.path_results_ensemble_classifier[type_classification + type_balancing + type_ensemble] = \
-                                self.path_results_classifier[type_classification + type_balancing + type_ensemble] + '/ensemble_classifier/'
-                            Path(self.path_results_ensemble_classifier[type_classification + type_balancing + type_ensemble])\
+                                self.path_results_classification + '/' + type_classification + '_' + type_balancing + '/' + type_ensemble + '/'
+                            Path(self.path_results_classifier[type_classification + type_balancing + type_ensemble]) \
                                 .mkdir(parents=True, exist_ok=True)
-
+                            self.path_results_ensemble_classifier[
+                                type_classification + type_balancing + type_ensemble] = \
+                                self.path_results_classifier[
+                                    type_classification + type_balancing + type_ensemble] + '/ensemble_classifier/'
+                            Path(self.path_results_ensemble_classifier[
+                                     type_classification + type_balancing + type_ensemble]) \
+                                .mkdir(parents=True, exist_ok=True)
 
         if settings['get_pca']:
             path_results_pca = self.path_results + '/PCA/'
@@ -204,6 +214,10 @@ class Paths:
                 self.path_results_get_pca[patient] = path_results_pca + 'patient_' + str(
                     patient) + '/'
                 Path(self.path_results_get_pca[patient]).mkdir(parents=True, exist_ok=True)
+
+        if settings['bar_plot_mean_patient']['plot'] or settings['bar_plot_best_electrode']['plot']:
+            self.path_results_bar_plot = self.path_results + '/bar plot/'
+            Path(self.path_results_bar_plot).mkdir(parents=True, exist_ok=True)
 
         if settings['wavelet']:
             self.path_results_wavelet = self.path_results + '/wavelet/'

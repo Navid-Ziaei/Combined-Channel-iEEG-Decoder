@@ -27,6 +27,8 @@ else:
 settings = {
     'band': 'gamma',  # Specify frequency band
     'task': 'question&answer',  # task : 'speech&music' , 'question&answer'
+    'task_Q&A': {'balance': True,
+                 'start_sample': 0},
     'generate_electrode_histogram': True,
     # Get histogram of electrodes of patients
     'print_analyze_electrode_histogram': True,
@@ -55,14 +57,14 @@ settings = {
     'feature_list': {'AVG': True, 'RMS': True, 'Max_peak': True, 'Variance': True, 'Coastline': True,
                      'Band_powers': True, 'Spectral_edge_frequency': True, 'Skewness': True, 'Kurtosis': True,
                      'Autocorrelation_function': True, 'Hjorth_mobility': True, 'Hjorth_complexity': True,
-                     'Nonlinear_energy': True, 'Spectral_entropy': True, 'Sample_entropy': True, 'Renyi_entropy': True,
+                     'Nonlinear_energy': True, 'Spectral_entropy': True, 'Sample_entropy': False, 'Renyi_entropy': True,
                      'Shannon_entropy': True, 'Spikes': True, 'Fractal_dimension': True},
 
     'plot_class_conditional_average': False,
     # for task:'speech&music', step=29.5 , for task:'question&answer', step=2.5
     # for task:'speech&music', window_size=200 , for task:'question&answer', window_size=20
     # Notice that 't_min'+'step' must be integer
-    'parameter_get_feature': {'num_patient_get_feature': 3,
+    'parameter_get_feature': {'num_patient_get_feature': 2,
                               'num_patient_plot_class_conditional_average': 2,
                               'window_size': 20,
                               't_min': 0.5,
@@ -74,20 +76,30 @@ settings = {
     # Specify type_balancing :  'over_sampling' or 'under_sampling'  or 'over&down_sampling' or 'weighted_losfunc'
     # Notice that for classification Naive_bayes don't use 'weighted_losfunc' way for balancing
     'classification': True,
-    'list_type_balancing': {'Without_balancing': False,
+    'list_type_balancing': {'Without_balancing': True,
                             'over_sampling': False,
-                            'under_sampling': True,
+                            'under_sampling': False,
                             'over&down_sampling': False},
-    'list_type_classification': {'Logistic_regression': False,
+    'list_type_classification': {'Logistic_regression': True,
                                  'SVM': True,
-                                 'Naive_bayes': False},
+                                 'Naive_bayes': True},
     'list_ensemble_method': {'Max_voting': True,
-                             'Stacking_ensemble': True},
+                             'Stacking_ensemble': False},
 
-    'parameter_classification': {'num_patient': 3},
+    'parameter_classification': {'num_patient': 51},
     # Get Principal Component Analysis
     'get_pca': False,
-    'parameter_get_pca': {'num_patient': 15}
+    'parameter_get_pca': {'num_patient': 15},
+
+    # Bar plot as final result
+    'bar_plot_mean_patient': {'plot': True,
+                              'num_patient_avg': 10},
+
+    'bar_plot_best_electrode': {'plot': True,
+                                'type_classification': 'SVM',
+                                'type_balancing': 'Without_balancing',
+                                'num_best_patient': 5,
+                                'num_best_electrode': 6}
 }
 
 load_data_settings = {
@@ -118,6 +130,8 @@ if settings['generate_electrode_histogram']:
 # if task is 'speech&music' : (onset_1,offset_1) refer to music / (onset_0,offset_0) refer to speech
 # if task is 'question&answer' : (onset_1,offset_1) refer to question / (onset_0,offset_0) refer to answer
 onset_1, offset_1, onset_0, offset_0 = read_time(task=settings['task'],
+                                                 balance=settings['task_Q&A']['balance'],
+                                                 start_sample=settings['task_Q&A']['start_sample'],
                                                  t_min=settings['parameter_synchronous_average']['t_min'],
                                                  paths=paths)
 
@@ -163,12 +177,12 @@ if settings['wavelet']:
 " ------------------------------------------------- Feature extraction ---------------------------------------------"
 if settings['get_feature']:
     feature_ex = FeatureExtractor(channel_names=channel_names_list,
-                             onset_1=onset_1,
-                             onset_0=onset_0,
-                             path=paths,
-                             settings=settings)
+                                  onset_1=onset_1,
+                                  onset_0=onset_0,
+                                  path=paths,
+                                  settings=settings)
     feature_ex.get_feature_all(data_with_hilbert=band_all_patient_with_hilbert,
-                              data_without_hilbert=band_all_patient_without_hilbert)
+                               data_without_hilbert=band_all_patient_without_hilbert)
 
     feature_all_matrix = feature_ex.create_feature_matrix()
 
@@ -194,5 +208,14 @@ if settings['get_pca']:
              path=paths,
              feature_matrix=feature_all_matrix,
              settings=settings)
+
+"--------------------------------------------------Bar plot-------------------------------------------"
+if settings['bar_plot_mean_patient']['plot']:
+    bar_plot_mean_patient(settings=settings,
+                          path=paths)
+
+if settings['bar_plot_best_electrode']['plot']:
+    bar_plot_best_electrode(settings=settings,
+                            paths=paths)
 
 " ------------------------------------------------- The end :)) ---------------------------------------------"
