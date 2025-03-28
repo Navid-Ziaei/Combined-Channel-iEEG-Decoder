@@ -1,6 +1,6 @@
 ## Settings
 
-task2: 'Singing_Music'
+task: 'Singing_Music'
 num_patient: 29
 balance_sample: false
 fs: 250
