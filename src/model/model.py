@@ -7,19 +7,15 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import precision_recall_fscore_support
 from imblearn.over_sampling import SMOTE
-from imblearn.under_sampling import RandomUnderSampler
-from imblearn.pipeline import Pipeline
 import matplotlib.pyplot as plt
 import csv
 import pickle as pkl
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from collections import Counter
 from sklearn.model_selection import train_test_split
-import random
 from collections import Counter
 from xgboost import XGBClassifier
-from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
+
 
 
 class ModelSinglePatient:
@@ -28,21 +24,21 @@ class ModelSinglePatient:
         self.feature_matrix = feature_matrix
         self.label = label
         self.settings = settings
-        self.num_patient = settings['parameter_classification']['num_patient']
+        self.num_patient = settings.parameter_classification['num_patient']
         self.path = path
         self.channel_names_list = channel_names_list
 
     def create_model(self):
-        list_type_balancing = self.settings['list_type_balancing'].keys()
-        list_type_classification = self.settings['list_type_classification'].keys()
-        list_ensemble_method = self.settings['list_ensemble_method'].keys()
+        list_type_balancing = self.settings.list_type_balancing.keys()
+        list_type_classification = self.settings.list_type_classification.keys()
+        list_ensemble_method = self.settings.list_ensemble_method.keys()
 
         for type_balancing in list_type_balancing:
             for type_classification in list_type_classification:
                 for type_ensemble in list_ensemble_method:
-                    if self.settings['list_type_classification'][type_classification] & \
-                            self.settings['list_type_balancing'][type_balancing] & \
-                            self.settings['list_ensemble_method'][type_ensemble]:
+                    if self.settings.list_type_classification[type_classification] & \
+                            self.settings.list_type_balancing[type_balancing] & \
+                            self.settings.list_ensemble_method[type_ensemble]:
                         print("\n =================================== \n"
                               f"\n classifier:{type_classification} , balancing:{type_balancing}  , "
                               f" ensemble_method:{type_ensemble} is running ...")
@@ -67,30 +63,14 @@ class ModelSinglePatient:
         return scaler.transform(x)
 
     def resample_data(self, x, y, type_balancing):
-
-        if type_balancing == 'over&down_sampling':
-            # define pipeline
-            over = SMOTE(sampling_strategy=0.58)
-            under = RandomUnderSampler(sampling_strategy=0.66)
-            steps = [('o', over), ('u', under)]
-            pipeline = Pipeline(steps=steps)
-            # transform the dataset
-            x, y = pipeline.fit_resample(x, y)
-
-        if type_balancing == 'over_sampling':
-            # transform the dataset
-            oversample = SMOTE()
-            x, y = oversample.fit_resample(x, y)
-
-        if type_balancing == 'under_sampling':
-            # define pipeline
-            under = RandomUnderSampler()
-            x, y = under.fit_resample(x, y)
+        # transform the dataset
+        oversample = SMOTE()
+        x, y = oversample.fit_resample(x, y)
 
         return x, y
 
     def balance_learn_model(self, x_train, y_train, type_balancing, type_classification):
-        if self.settings['list_type_balancing']['Without_balancing'] is False:
+        if self.settings.list_type_balancing['Without_balancing'] is False:
             x_train, y_train = self.resample_data(x_train, y_train, type_balancing)
 
         if type_classification == 'Logistic_regression':
