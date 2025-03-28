@@ -1,0 +1,46 @@
+## Settings
+
+task: 'Singing_Music'
+num_patient: 29
+balance_sample: false
+fs: 250
+
+## Feature Extraction
+feature_list:
+  AVG: true
+  RMS: true
+  Max_peak: true
+  Variance: true
+  Coastline: true
+  Band_powers: true
+  Spectral_edge_frequency: true
+  Skewness: true
+  Kurtosis: true
+  Autocorrelation_function: true
+  Hjorth_mobility: true
+  Hjorth_complexity: true
+  Nonlinear_energy: true
+  Spectral_entropy: true
+  Sample_entropy: false
+  Renyi_entropy: true
+  Shannon_entropy: true
+  Spikes: true
+  Fractal_dimension: true
+
+parameter_get_feature:
+  num_patient_get_feature: 12
+
+save_feature_matrix: true
+load_feature_matrix: true
+
+## Model Settings
+list_type_balancing:
+  Without_balancing: false
+  over_sampling: true
+
+list_type_classification:
+  Logistic_regression: true
+  SVM: true
+  Naive_bayes: true
+  XGBoost: true
+  RandomForest: true

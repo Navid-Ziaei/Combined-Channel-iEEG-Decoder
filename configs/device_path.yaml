@@ -1,0 +1,5 @@
+# Path to the raw dataset for the 'Audio_visual' experiment
+path_dataset: 'F:/maryam_sh/Datasets/Raw_data/Audio_visual'
+
+# Path to store processed data (modify if needed for a specific dataset)
+path_processed_data: 'F:/maryam_sh/Datasets/Raw_data/'
