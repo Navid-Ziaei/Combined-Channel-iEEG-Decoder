@@ -6,8 +6,6 @@
 * [General Information](#general-information)
 * [Reference](#reference)
 * [Getting Started](#getting-started)
-* [Example](#example)
-* [Reading in Data](#reading-in-edf-data)
 * [Repository Structure](#repository-structure)
 * [Citations](#citations)
 <br/>
@@ -20,7 +18,7 @@ For more details on our work and to cite it in your research, please visit our p
 
 ## Getting Started
 
-1. Step 1: Clone the Repository 
+1. Clone the Repository 
 `git clone https://github.com/Navid-Ziaei/Combined-Channel-iEEG-Decoder.git`
 
 2. Update Device Path Configuration:
