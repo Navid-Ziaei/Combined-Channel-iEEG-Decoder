@@ -70,7 +70,7 @@ which should be cited for academic use of this code.
 
 ## Contributing
 
-We encourage you to contribute to LDGD! 
+We encourage you to contribute to Single-Patient model! 
 
 ## License
 
