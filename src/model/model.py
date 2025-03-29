@@ -8,10 +8,16 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import precision_recall_fscore_support, confusion_matrix, ConfusionMatrixDisplay
 from imblearn.over_sampling import SMOTE
 import matplotlib.pyplot as plt
-import csv
 import pickle as pkl
 from collections import Counter
 from xgboost import XGBClassifier
+from src.visualization.visualization_utils import (_save_plot_data,
+                                                   _plot_save_ensemble_performance,
+                                                   _plot_max_performance,
+                                                   _write_max_performance_csv,
+                                                   _plot_ensemble_f_measure,
+                                                   _plot_patient_f_measure,
+                                                   _save_patient_results_to_csv)
 
 
 class ModelSinglePatient:
@@ -416,7 +422,7 @@ class ModelSinglePatient:
             max_performance_all.append(max_performance)
 
             # Save patient results to CSV
-            self._save_patient_results_to_csv(
+            _save_patient_results_to_csv(
                 patient, ch_name_list[patient],
                 f_measure_mean, f_measure_var,
                 precision_mean, precision_var,
@@ -425,20 +431,20 @@ class ModelSinglePatient:
             )
 
             # Plot F-measure for all channels
-            self._plot_patient_f_measure(
+            _plot_patient_f_measure(
                 patient, f_measure_mean, f_measure_var,
                 result_path
             )
 
             # Save data for plotting
-            self._save_plot_data(
+            _save_plot_data(
                 patient, ch_name_list[patient],
                 f_measure_mean, f_measure_var,
                 result_path
             )
 
             # Plot ensemble F-measure
-            self._plot_ensemble_f_measure(
+            _plot_ensemble_f_measure(
                 patient, f_measure_all_ensemble,
                 ensemble_path
             )
@@ -448,146 +454,20 @@ class ModelSinglePatient:
             pkl.dump(pos_classifier_all_fold, f)
 
         # Plot max performance across patients
-        self._plot_max_performance(f_measure_bestchannel, result_path)
+        _plot_max_performance(f_measure_bestchannel, result_path)
 
         # Save max performance data
         np.save(f"{result_path}max_performance_all.npy", f_measure_bestchannel)
 
         # Plot and save ensemble performance
-        self._plot_save_ensemble_performance(
+        _plot_save_ensemble_performance(
             f_measure_all_ensemble,
             result_path
         )
 
-        # Write summary CSV for all patients
-        self._write_max_performance_csv(
+        # Write summary CSV for all patient
+        _write_max_performance_csv(
             max_performance_all, f_measure_all_ensemble,
             type_classification, type_balancing,
             result_path
         )
-
-    def _save_patient_results_to_csv(self, patient, ch_names, f_measure_mean, f_measure_var,
-                                     precision_mean, precision_var, recall_mean, recall_var, path):
-        """Helper method to save patient results to CSV."""
-        header = ['num_channel', 'channel', '', 'f_measure', '', 'precision', '', 'recall']
-        with open(f"{path}patient_{patient}.csv", 'w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(header)
-            for i in range(len(ch_names)):
-                writer.writerow([
-                    i, ch_names[i], ' ',
-                    f"{f_measure_mean[i]}±{f_measure_var[i]}", ' ',
-                    f"{precision_mean[i]}±{precision_var[i]}", ' ',
-                    f"{recall_mean[i]}±{recall_var[i]}"
-                ])
-
-    def _plot_patient_f_measure(self, patient, f_measure_mean, f_measure_var, path):
-        """Helper method to plot patient F-measure with professional formatting."""
-        plt.figure(figsize=(10, 6), dpi=300)
-        channel_index = np.arange(0, len(f_measure_mean))
-        plt.plot(channel_index, f_measure_mean, color='#1f77b4', linewidth=2)
-        plt.fill_between(
-            channel_index,
-            f_measure_mean - f_measure_var,
-            f_measure_mean + f_measure_var,
-            color='#1f77b4', alpha=0.2
-        )
-        plt.title(f'F-Measure Performance Across Channels (Patient {patient})', fontweight='bold')
-        plt.ylabel('F-Measure (Mean ± Variance)')
-        plt.xlabel('Channel Index')
-        plt.grid(True, linestyle='--', alpha=0.7)
-        plt.tight_layout()
-        plt.savefig(f"{path}patient_{patient}")
-        plt.savefig(f"{path}patient_{patient}.svg")
-        plt.close()
-
-    def _save_plot_data(self, patient, ch_names, f_measure_mean, f_measure_var, path):
-        """Helper method to save plot data."""
-        data = np.column_stack((ch_names, f_measure_mean, f_measure_var))
-        np.save(f"{path}patient_{patient}.npy", data)
-
-    def _plot_ensemble_f_measure(self, patient, f_measure_all_ensemble, path):
-        """Helper method to plot ensemble F-measure with professional formatting."""
-        f_measure_mean = np.mean(f_measure_all_ensemble, axis=1)
-        f_measure_std = np.std(f_measure_all_ensemble, axis=1)
-
-        plt.figure(figsize=(10, 6), dpi=300)
-        plt.plot(f_measure_mean[patient, :], color='#d62728', linewidth=2)
-        plt.fill_between(
-            np.arange(0, f_measure_mean.shape[1]),
-            f_measure_mean[patient, :] - f_measure_std[patient, :],
-            f_measure_mean[patient, :] + f_measure_std[patient, :],
-            color='#d62728', alpha=0.2
-        )
-        plt.title(f'Ensemble Classification Performance (Patient {patient})', fontweight='bold')
-        plt.ylabel('F-Measure (Mean ± Standard Deviation)')
-        plt.xlabel('Ensemble Size (Number of Combined Channels)')
-        plt.grid(True, linestyle='--', alpha=0.7)
-        plt.tight_layout()
-        plt.savefig(f"{path}patient_{patient}")
-        plt.savefig(f"{path}patient_{patient}.svg")
-        plt.close()
-
-        # Save data
-        data = np.column_stack((f_measure_mean[patient, :], f_measure_std[patient, :]))
-        np.save(f"{path}patient_{patient}.npy", data)
-
-    def _plot_max_performance(self, f_measure_bestchannel, path):
-        """Helper method to plot max performance across patients with professional formatting."""
-        plt.figure(figsize=(10, 6), dpi=300)
-        plt.plot(np.arange(0, self.num_patient), f_measure_bestchannel,
-                 color='#2ca02c', linewidth=2, marker='o', markersize=5)
-        plt.title('Maximum Classification Performance Across Patients', fontweight='bold')
-        plt.ylabel('F-Measure (Best Channel)')
-        plt.xlabel('Patient ID')
-        plt.grid(True, linestyle='--', alpha=0.7)
-        plt.xticks(np.arange(0, self.num_patient, 1))
-        plt.ylim(max(0, min(f_measure_bestchannel) - 0.1), min(1, max(f_measure_bestchannel) + 0.1))
-        plt.tight_layout()
-        plt.savefig(f"{path}max_performance_all")
-        plt.savefig(f"{path}max_performance_all.svg")
-        plt.close()
-
-    def _plot_save_ensemble_performance(self, f_measure_all_ensemble, path):
-        """Helper method to plot and save ensemble performance with professional formatting."""
-        f_measure_mean = np.mean(f_measure_all_ensemble, axis=1)
-
-        plt.figure(figsize=(10, 6), dpi=300)
-        plt.plot(np.max(f_measure_mean, axis=1), color='#9467bd',
-                 linewidth=2, marker='o', markersize=5)
-        plt.title('Maximum Ensemble F-Measure Across Patients', fontweight='bold')
-        plt.xticks(np.arange(0, self.num_patient, 1))
-        plt.ylabel('Maximum F-Measure (Ensemble)')
-        plt.xlabel('Patient ID')
-        plt.grid(True, linestyle='--', alpha=0.7)
-        plt.ylim(max(0, min(np.max(f_measure_mean, axis=1)) - 0.1),
-                 min(1, max(np.max(f_measure_mean, axis=1)) + 0.1))
-        plt.tight_layout()
-        plt.savefig(f"{path}f_measure_all_ensemble")
-        plt.savefig(f"{path}f_measure_all_ensemble.svg")
-        plt.close()
-
-        # Save data
-        np.save(f"{path}f_measure_all_ensemble.npy", np.max(f_measure_mean, axis=1))
-        np.save(f"{path}f_measure_all_ensemble_all.npy", f_measure_all_ensemble)
-
-    def _write_max_performance_csv(self, max_performance_all, f_measure_all_ensemble,
-                                   type_classification, type_balancing, path):
-        """Helper method to write max performance CSV."""
-        header = [
-            'num_patient', '', 'num_best_channel', '', 'best_channel', '',
-            'max_f_measure', '', 'f_measure_ensemble'
-        ]
-        f_measure_mean = np.mean(f_measure_all_ensemble, axis=1)
-
-        with open(f"{path}max_performance__{type_classification}_{type_balancing}.csv", 'w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(header)
-            for patient in range(self.num_patient):
-                writer.writerow([
-                    patient, ' ',
-                    max_performance_all[patient]['num_best_electrode'], ' ',
-                    max_performance_all[patient]['best_electrode'], ' ',
-                    max_performance_all[patient]['max_f_measure'], ' ',
-                    np.max(f_measure_mean[patient])
-                ])
