@@ -12,7 +12,6 @@ class Paths:
         self.path_save_data = ''
         self.path_results = ''
         self.path_store_model = ''
-        self.path_results_classification = None
         self.path_results_classifier = {}
         self.path_results_ensemble_classifier = {}
 
@@ -41,7 +40,7 @@ class Paths:
         """
         Creates necessary directories for saving results and models.
         """
-        dir_path = os.path.dirname(os.path.realpath(__file__))
+        dir_path = Path(__file__).resolve().parents[2]
         base_path = os.path.join(dir_path, 'results', settings.task,
                                  datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))
 
@@ -49,23 +48,20 @@ class Paths:
         self.path_processed_data = path_processed_data
         Path(self.path_processed_data).mkdir(parents=True, exist_ok=True)
 
-        self.path_save_data = os.path.join(dir_path, 'data')
+        self.path_save_data = os.path.join(base_path, 'data')
         Path(self.path_save_data).mkdir(parents=True, exist_ok=True)
 
         self.path_store_model = os.path.join(base_path, 'hyper_param_set', 'saved_models')
         Path(self.path_store_model).mkdir(parents=True, exist_ok=True)
 
-        self.path_results_classification = os.path.join(self.path_results, 'results')
-        Path(self.path_results_classification).mkdir(parents=True, exist_ok=True)
-
         for type_classification, is_enabled_cls in settings.list_type_classification.items():
             for type_balancing, is_enabled_bal in settings.list_type_balancing.items():
                 if is_enabled_cls and is_enabled_bal:
                     key = f'{type_classification}{type_balancing}'
-                    self.path_results_classifier[key] = os.path.join(self.path_results_classification,
-                                                                     f'{type_classification}_{type_balancing}')
+                    self.path_results_classifier[key] = os.path.join(base_path,
+                                                                     f'{type_classification}_{type_balancing}/')
                     Path(self.path_results_classifier[key]).mkdir(parents=True, exist_ok=True)
 
                     self.path_results_ensemble_classifier[key] = os.path.join(self.path_results_classifier[key],
-                                                                              'ensemble_classifier')
+                                                                              'ensemble_classifier/')
                     Path(self.path_results_ensemble_classifier[key]).mkdir(parents=True, exist_ok=True)

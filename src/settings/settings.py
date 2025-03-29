@@ -1,6 +1,7 @@
 import yaml
 from pathlib import Path
-
+import os
+import json
 
 class Settings:
     def __init__(self):
@@ -32,9 +33,6 @@ class Settings:
             'Shannon_entropy': None,
             'Spikes': None,
             'Fractal_dimension': None
-        }
-        self.__parameter_get_feature = {
-            'num_patient_get_feature': None
         }
         self.__save_feature_matrix = None
         self.__load_feature_matrix = None
@@ -82,14 +80,6 @@ class Settings:
                 else:
                     raise ValueError(f"Unexpected feature: {feature}")
 
-        # Load parameter get feature
-        if 'parameter_get_feature' in settings_yaml:
-            for key, value in settings_yaml['parameter_get_feature'].items():
-                if key in self.__parameter_get_feature:
-                    self.__parameter_get_feature[key] = value
-                else:
-                    raise ValueError(f"Unexpected parameter: {key}")
-
         # Load feature matrix settings
         self.save_feature_matrix = settings_yaml.get('save_feature_matrix')
         self.load_feature_matrix = settings_yaml.get('load_feature_matrix')
@@ -122,15 +112,14 @@ class Settings:
             'balance_sample': self.__balance_sample,
             'fs': self.__fs,
             'feature_list': self.__feature_list,
-            'parameter_get_feature': self.__parameter_get_feature,
             'save_feature_matrix': self.__save_feature_matrix,
             'load_feature_matrix': self.__load_feature_matrix,
             'list_type_balancing': self.__list_type_balancing,
             'list_type_classification': self.__list_type_classification
         }
 
-        with open(file_path, 'w') as yaml_file:
-            yaml.dump(settings_dict, yaml_file, default_flow_style=False)
+        with open(file_path + '/settings.json', 'w') as json_file:
+            json.dump(settings_dict, json_file, indent=4)
 
     # Property setters and getters
     @property
@@ -180,10 +169,6 @@ class Settings:
     @property
     def feature_list(self):
         return self.__feature_list
-
-    @property
-    def parameter_get_feature(self):
-        return self.__parameter_get_feature
 
     @property
     def save_feature_matrix(self):

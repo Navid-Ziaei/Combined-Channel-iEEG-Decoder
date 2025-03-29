@@ -19,7 +19,7 @@ class FeatureExtractor:
     and organizes them into feature matrices for further analysis.
     """
 
-    def __init__(self, channel_names, onset_1, onset_0, path, settings):
+    def __init__(self, channel_names, path, settings):
         """
         Initialize the FeatureExtractor.
 
@@ -34,8 +34,8 @@ class FeatureExtractor:
               "\nExtracting features")
 
         self.channel_names = channel_names
-        self.onset_1 = onset_1
-        self.onset_0 = onset_0
+        self.onset_1 = 0
+        self.onset_0 = 0
         self.fs = settings.fs  # Sampling frequency
         self.path = path
         self.settings = settings
@@ -43,7 +43,7 @@ class FeatureExtractor:
         self.feature_all_patient = []
 
     @staticmethod
-    def sampen(signal: np.ndarray, m: int, r: float) -> float:
+    def sampen(signal, m, r):
         """
         Calculate the sample entropy for a given signal.
 
@@ -85,10 +85,10 @@ class FeatureExtractor:
 
         return -np.log(A / B)
 
-    def _linear_function(self, x: np.ndarray, a: float, b: float) -> np.ndarray:
+    def _linear_function(self, x, a, b):
         return a * x + b
 
-    def hfd(self, signal: np.ndarray, kmax: int = 20) -> float:
+    def hfd(self, signal, kmax=20):
         """
         Calculate the Higuchi Fractal Dimension (HFD) of a signal.
 
@@ -270,13 +270,14 @@ class FeatureExtractor:
             data: List of raw data arrays
         """
         if not self.settings.load_feature_matrix:
-            num_patient = self.settings.parameter_get_feature['num_patient_get_feature']
+            num_patient = self.settings.num_patient
 
             for patient in range(num_patient):
                 print(f'Processing patient {patient + 1}/{num_patient}')
                 single_patient_feature = []
 
-                for num_electrode in range(data[patient].shape[1]):
+                # for num_electrode in range(data[patient].shape[1]):
+                for num_electrode in range(2):
                     feature = {key: [] for key in self.feature_list.keys() if self.feature_list[key]}
 
                     for i in range(data[patient].shape[0]):
@@ -304,7 +305,7 @@ class FeatureExtractor:
             with open(file_path, 'rb') as f:
                 self.feature_all_patient = pickle.load(f)
 
-    def create_feature_matrix(self) -> List[np.ndarray]:
+    def create_feature_matrix(self):
         """
         Convert feature DataFrames to feature matrices.
 
@@ -320,11 +321,12 @@ class FeatureExtractor:
 
             for patient in range(len(self.feature_all_patient)):
                 num_channels = len(self.channel_names[patient])
-                num_samples = len(self.onset_1) + len(self.onset_0)
+                num_samples = self.feature_all_patient[patient][0].shape[0]
 
                 feature_matrix = np.zeros((num_channels, num_samples, num_features))
 
-                for electrode in range(num_channels):
+                # for electrode in range(num_channels):
+                for electrode in range(2):
                     feature_matrix[electrode, :, :] = self.feature_all_patient[patient][electrode].values
 
                 feature_matrix_all.append(feature_matrix)

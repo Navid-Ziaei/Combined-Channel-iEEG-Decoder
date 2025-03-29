@@ -10,7 +10,7 @@ settings.load_settings()
 # Loading Paths from /configs/device.yaml
 paths = Paths(settings)
 paths.load_device_paths()
-
+settings.save_settings(paths.path_store_model)
 
 # Load and preprocess data
 data_all_patient, channel_names_list, labels = load_data(settings, paths)
@@ -30,7 +30,8 @@ feature_all_matrix = feature_ex.create_feature_matrix()
 model = ModelSinglePatient(feature_matrix=feature_all_matrix,
                            path=paths,
                            settings=settings,
-                           channel_names_list=channel_names_list)
+                           channel_names_list=channel_names_list,
+                           label=labels)
 model.create_model()
 
 

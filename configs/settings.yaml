@@ -1,7 +1,7 @@
 ## Settings
 
-task: 'Singing_Music'
-num_patient: 29
+task: 'Move_Rest'
+num_patient: 2
 balance_sample: false
 fs: 250
 
@@ -26,9 +26,6 @@ feature_list:
   Shannon_entropy: true
   Spikes: true
   Fractal_dimension: true
-
-parameter_get_feature:
-  num_patient_get_feature: 12
 
 save_feature_matrix: true
 load_feature_matrix: true
