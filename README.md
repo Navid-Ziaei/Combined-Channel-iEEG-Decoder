@@ -9,7 +9,7 @@
 * [Repository Structure](#repository-structure)
 * [Citations](#citations)
 <br/>
-* 
+
 ## General Information
 The Single Participant Model is designed to analyze and classify brain data on a per-participant basis. This approach enables a detailed understanding of individual variations in brain activity and their impact on classification tasks. The model supports two operational modes: Best Channel and Combined Channel, providing flexibility in feature selection and analysis.
 
