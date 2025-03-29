@@ -27,10 +27,10 @@ For more details on our work and to cite it in your research, please visit our p
 `git clone https://github.com/Navid-Ziaei/Combined-Channel-iEEG-Decoder.git`
 
 2. Update Device Path Configuration:
-Open config/device_path.yaml and modify the device_path parameter to match your system setup.
+Open `config/device_path.yaml` and modify the device_path parameter to match your system setup.
 
 3. Set Parameters in setting.yaml:
-Configure the necessary parameters in the config/setting.yaml file according to your requirements.
+Configure the necessary parameters in the `config/setting.yaml` file according to your requirements.
 
 4. Run the Main Script:
 Finally, execute the main script to start the program:
