@@ -11,7 +11,12 @@
 <br/>
 * 
 ## General Information
-............
+The Single Participant Model is designed to analyze and classify brain data on a per-participant basis. This approach enables a detailed understanding of individual variations in brain activity and their impact on classification tasks. The model supports two operational modes: Best Channel and Combined Channel, providing flexibility in feature selection and analysis.
+
+## Features
+- **Best Channel Mode**: Utilizes the most effective single channel for classification per subject.
+- **Combined Channel Mode**: Aggregates data from multiple channels, leveraging a majority-voting approach to enhance performance and robustness.
+- **Brain Region Analysis**: Maps effective channels to brain regions and identifies the frequency and consistency of region usage across participants.
 
 ## Reference
 For more details on our work and to cite it in your research, please visit our paper: [See the details in ArXiv, 2024](https://arxiv.org/abs/2412.06336). Cite this paper using its [DOI](https://doi.org/10.48550/arXiv.2412.06336).
