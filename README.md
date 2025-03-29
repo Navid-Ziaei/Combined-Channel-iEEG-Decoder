@@ -55,7 +55,7 @@ This repository is organized as follows:
 <br/>
 
 ## Citations
-The code contained in this repository for LDGD is companion to the paper:  
+The code contained in this repository for Single-Patient model is companion to the paper:  
 
 ```
 @article{memar2024combined,
