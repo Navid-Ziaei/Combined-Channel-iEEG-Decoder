@@ -45,6 +45,8 @@ This repository is organized as follows:
 
 - `src/experiments`: Contains scripts for different experiments.
 
+- `src/feature_extraction`: Contains scripts for feature extraction methods.
+
 - `src/model`: Contains the Single-Patient model .
 
 - `src/settings`: Contains scripts to manage settings (`settings.py`) and paths (`paths.py`).
