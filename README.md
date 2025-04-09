@@ -39,7 +39,7 @@ Finally, execute the main script to start the program:
 ## Repository Structure
 This repository is organized as follows:
 
-- `src/main.py`: The main script to run the Single-Patient model.
+- `main.py`: The main script to run the Single-Patient model.
 
 - `src/data`: Contains scripts for data loading.
 
